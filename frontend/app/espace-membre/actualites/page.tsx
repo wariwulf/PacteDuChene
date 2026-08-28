@@ -21,7 +21,8 @@ interface NewsResponse {
   };
 }
 
-const API_URL = "http://localhost:5000";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 function formatCategory(category: NewsArticle["category"]) {
   const categories = {
@@ -44,7 +45,7 @@ function formatDate(date: string) {
 
 async function getNews(): Promise<NewsArticle[]> {
   try {
-    const response = await fetch(`${API_URL}/api/news`, {
+    const response = await fetch(`${API_URL}/news`, {
       cache: "no-store",
     });
 
