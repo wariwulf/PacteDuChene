@@ -17,9 +17,22 @@ const app = express();
 
 app.use(cookieParser());
 
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://lepacteduchene.fr",
+  "https://www.lepacteduchene.fr",
+];
+
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error("Origine non autorisée par le CORS"));
+    },
     credentials: true,
   })
 );
