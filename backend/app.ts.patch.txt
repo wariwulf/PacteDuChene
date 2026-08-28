@@ -1,0 +1,7 @@
+Ajouter dans backend/src/app.ts :
+
+import shopsRoutes from "./modules/shops/shops.routes";
+
+Puis avec les autres routes :
+
+app.use("/api/shops", shopsRoutes);

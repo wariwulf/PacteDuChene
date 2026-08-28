@@ -1,0 +1,1 @@
+export { default as shopsRoutes } from "./shops.routes";

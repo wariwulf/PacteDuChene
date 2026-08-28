@@ -1,0 +1,14 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const bot_auth_middleware_1 = require("./bot.auth.middleware");
+const bot_controller_1 = require("./bot.controller");
+const router = (0, express_1.Router)();
+router.use(bot_auth_middleware_1.requireBotAuth);
+router.get("/health", bot_controller_1.getBotHealth);
+router.get("/members/by-discord/:discordId", bot_controller_1.getMemberByDiscordId);
+router.post("/members/sync", bot_controller_1.syncDiscordMember);
+router.post("/members/sync/complete", bot_controller_1.completeDiscordMembersSync);
+router.post("/economy/daily/claim", bot_controller_1.claimDailyReward);
+exports.default = router;
+router.post("/economy/rewards/voice/tick", bot_controller_1.rewardVoiceTick);

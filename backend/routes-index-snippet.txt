@@ -1,0 +1,6 @@
+// À ajouter dans backend/src/routes/index.ts
+
+import usersRoutes from "../modules/users/users.routes";
+
+// Avec les autres routes :
+router.use("/users", usersRoutes);

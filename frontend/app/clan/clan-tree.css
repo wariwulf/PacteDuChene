@@ -1,0 +1,364 @@
+.clan-page {
+  min-height: 100vh;
+  color: #f5f1df;
+  overflow-x: hidden;
+  position: relative;
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(3, 18, 10, 0.18) 0%,
+      rgba(3, 18, 10, 0.28) 45%,
+      rgba(3, 18, 10, 0.62) 100%
+    ),
+    url("/images/clan-tree-background.png") center top / cover no-repeat fixed;
+
+  background-color: #031b0e;
+}
+
+.clan-container {
+  width: min(1500px, calc(100% - 40px));
+  margin: auto;
+  padding: 55px 0 80px;
+}
+
+.clan-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 30px;
+  margin-bottom: 35px;
+}
+
+.eyebrow {
+  margin: 0 0 8px;
+  color: #f5a400;
+  font-size: .78rem;
+  font-weight: 800;
+  letter-spacing: .28em;
+}
+
+.clan-header h1 {
+  margin: 0;
+  font-size: clamp(2.3rem, 5vw, 4.5rem);
+  line-height: .95;
+}
+
+.subtitle {
+  color: #5de79b;
+}
+
+.clan-header button,
+.state button {
+  border: 0;
+  border-radius: 8px;
+  padding: 13px 20px;
+  background: #f28c00;
+  color: white;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tree {
+  position: relative;
+  padding: 60px 35px 70px;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Léger voile pour garantir la lisibilité des cartes sans masquer le décor. */
+.tree::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      circle at 50% 38%,
+      rgba(2, 22, 11, .08),
+      rgba(2, 22, 11, .30) 78%
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+.level {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.rex {
+  margin-bottom: 45px;
+}
+
+.dux {
+  margin-bottom: 55px;
+}
+
+.clan-member-card {
+  width: min(300px, 100%);
+  min-height: 110px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  padding: 13px;
+  text-decoration: none;
+  color: white;
+  border: 1px solid #b77b16;
+  border-radius: 10px;
+  background: linear-gradient(
+    145deg,
+    rgba(10, 65, 34, .94),
+    rgba(4, 44, 23, .96)
+  );
+  box-shadow: 0 8px 22px rgba(0, 0, 0, .45);
+  transition: .16s;
+}
+
+.clan-member-card:hover {
+  transform: translateY(-5px);
+  border-color: #f5a400;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, .60);
+}
+
+.rex .clan-member-card {
+  width: min(360px, 100%);
+  border-width: 2px;
+}
+
+.compact {
+  width: min(245px, 100%);
+}
+
+.portrait {
+  width: 68px;
+  height: 68px;
+  flex: 0 0 68px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #f5a400;
+  background: #06351b;
+}
+
+.rex .portrait {
+  width: 82px;
+  height: 82px;
+  flex-basis: 82px;
+}
+
+.placeholder {
+  display: grid;
+  place-items: center;
+  color: #f5a400;
+  font-size: 1.7rem;
+  font-weight: 900;
+  background: radial-gradient(circle, #14572f, #042613);
+}
+
+.member-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.role {
+  color: #f5a400;
+  font-size: .68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+
+.member-info strong {
+  font-size: 1.12rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.title {
+  color: #65df99;
+  font-size: .82rem;
+}
+
+.connector {
+  position: relative;
+  z-index: 2;
+  width: 2px;
+  height: 45px;
+  margin: 0 auto;
+  background: linear-gradient(#f5a400, #6b4911);
+}
+
+.section-title {
+  position: relative;
+  z-index: 2;
+  width: min(390px, 90%);
+  margin: 0 auto 25px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 9px 16px;
+  border: 1px solid #9a6814;
+  border-radius: 999px;
+  background: rgba(2, 37, 19, .94);
+  color: #f5a400;
+  font-size: .76rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.initiates {
+  gap: 16px;
+}
+
+.legend {
+  width: min(520px, 100%);
+  margin: 28px auto 0;
+  padding: 24px;
+  border: 1px solid #198f4c;
+  border-radius: 12px;
+  background: rgba(3, 50, 25, .90);
+}
+
+.legend h2 {
+  color: #f5a400;
+}
+
+.legend-row {
+  display: flex;
+  gap: 12px;
+  margin: 11px 0;
+}
+
+.legend-row span {
+  width: 25px;
+  text-align: center;
+  color: #f5a400;
+}
+
+.legend hr {
+  border: 0;
+  border-top: 1px solid #198f4c;
+  margin: 18px 0;
+}
+
+.legend p {
+  color: #68d99a;
+  font-size: .9rem;
+  line-height: 1.6;
+}
+
+.values {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: 28px;
+  border: 1px solid #198f4c;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(3, 44, 22, .90);
+}
+
+.values div {
+  padding: 22px;
+  border-right: 1px solid #198f4c;
+}
+
+.values div:last-child {
+  border: 0;
+}
+
+.values b {
+  display: block;
+  color: #f5a400;
+  margin-bottom: 6px;
+}
+
+.values span {
+  color: #65d896;
+  font-size: .9rem;
+}
+
+.state {
+  text-align: center;
+  padding: 70px 30px;
+  border: 1px solid #198f4c;
+  border-radius: 14px;
+  background: rgba(3, 52, 26, .90);
+}
+
+.error {
+  border-color: #a83232;
+}
+
+.empty {
+  text-align: center;
+  padding: 90px 20px;
+}
+
+.empty div {
+  font-size: 3rem;
+}
+
+.empty h2 {
+  color: #f5a400;
+}
+
+.empty p {
+  color: #65d896;
+}
+
+@media (max-width: 900px) {
+  .clan-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .tree {
+    padding: 40px 18px;
+  }
+
+  .values {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .values div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .clan-page {
+    background-attachment: scroll;
+  }
+}
+
+@media (max-width: 560px) {
+  .clan-container {
+    width: calc(100% - 20px);
+  }
+
+  .values {
+    grid-template-columns: 1fr;
+  }
+
+  .values div {
+    border-right: 0;
+    border-bottom: 1px solid #198f4c;
+  }
+
+  .values div:last-child {
+    border: 0;
+  }
+}
+
+.clan-background {
+  object-fit: cover;
+  object-position: center top;
+}

@@ -1,0 +1,9 @@
+// À ajouter dans backend/src/app.ts
+
+import path from "path";
+
+// Avant export default app;
+app.use(
+  "/uploads",
+  express.static(path.resolve(process.cwd(), "uploads"))
+);

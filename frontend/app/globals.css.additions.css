@@ -1,0 +1,645 @@
+/* ==========================================================
+   PACTE DU CHÊNE — LORE
+   Version : bibliothèque plein écran
+   Le décor est utilisé comme arrière-plan de toute la page.
+   Les livres restent des éléments HTML interactifs au premier plan.
+   ========================================================== */
+
+.pacte-lore-page {
+  --lore-bg: url("/images/lore-library-full-background.jpg");
+
+  position: relative;
+  min-height: calc(100vh - 68px);
+  overflow: hidden;
+  color: #eee4ca;
+  background: #030905;
+  isolation: isolate;
+}
+
+.pacte-lore-page__backdrop {
+  position: fixed;
+  inset: 68px 0 0;
+  z-index: -2;
+  pointer-events: none;
+  background-image:
+    linear-gradient(
+      rgba(2, 8, 5, .28),
+      rgba(2, 8, 5, .42)
+    ),
+    var(--lore-bg);
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-size: cover;
+  filter: saturate(.9) contrast(1.03);
+}
+
+.pacte-lore-page::after {
+  content: "";
+  position: fixed;
+  inset: 68px 0 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at 50% 20%,
+      rgba(198, 161, 91, .08),
+      transparent 34rem
+    ),
+    linear-gradient(
+      180deg,
+      rgba(0, 0, 0, .06),
+      rgba(0, 0, 0, .34)
+    );
+}
+
+.pacte-lore-page__container {
+  position: relative;
+  width: min(1220px, calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 1.5rem 0 5rem;
+}
+
+/* ================= BIBLIOTHÈQUE ================= */
+
+.pacte-library {
+  position: relative;
+  overflow: hidden;
+  min-height: 820px;
+  border: 1px solid rgba(199, 155, 76, .42);
+  border-radius: 8px;
+  background: rgba(3, 10, 6, .32);
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, .62),
+    inset 0 0 100px rgba(0, 0, 0, .34);
+}
+
+/*
+  Le titre présent dans l'image de fond peut apparaître derrière le
+  titre HTML. Le bandeau sombre ci-dessous rend le titre HTML lisible
+  et évite le doublon visuel.
+*/
+.pacte-library__header {
+  position: relative;
+  z-index: 4;
+  padding: 2.5rem 1.5rem 2rem;
+  text-align: center;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(2, 8, 5, .68),
+      rgba(2, 8, 5, .18)
+    );
+}
+
+.pacte-library__crest {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .8rem;
+  color: #d3ae60;
+  font-size: .68rem;
+  font-weight: 800;
+  letter-spacing: .3em;
+}
+
+.pacte-library__crest span {
+  color: #e0bd6b;
+}
+
+.pacte-library__header h1 {
+  margin: .45rem 0 0;
+  color: #f0e1bd;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2.8rem, 6vw, 5.2rem);
+  font-variant: small-caps;
+  letter-spacing: .05em;
+  line-height: 1;
+  text-shadow: 0 5px 24px rgba(0, 0, 0, .95);
+}
+
+.pacte-library__header p {
+  margin: 1rem auto 0;
+  color: #d2c6a7;
+  font-family: Georgia, serif;
+  font-style: italic;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, .9);
+}
+
+/* ================= MEUBLE AU PREMIER PLAN ================= */
+
+.pacte-bookshelf {
+  position: relative;
+  z-index: 5;
+  width: min(1080px, calc(100% - 3rem));
+  margin: 0 auto;
+  padding: 1rem 1.5rem 1.5rem;
+  border: 8px solid #1a0d07;
+  background:
+    radial-gradient(circle at 50% 15%, rgba(130, 80, 35, .28), transparent 45%),
+    linear-gradient(90deg, #2a140a, #472713 18%, #2f170c 82%, #1c0d07);
+  box-shadow:
+    inset 0 0 0 1px #714728,
+    inset 0 0 50px rgba(0, 0, 0, .78),
+    0 25px 60px rgba(0, 0, 0, .72);
+}
+
+.pacte-bookshelf__plaque {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .8rem;
+  margin: 0 auto 1rem;
+  max-width: 700px;
+}
+
+.pacte-bookshelf__plaque span {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #76502c);
+}
+
+.pacte-bookshelf__plaque span:last-child {
+  background: linear-gradient(90deg, #76502c, transparent);
+}
+
+.pacte-bookshelf__plaque strong {
+  padding: .4rem .8rem;
+  border: 1px solid rgba(214, 177, 100, .55);
+  border-radius: 3px;
+  color: #d5b56c;
+  font-family: Georgia, serif;
+  font-size: .62rem;
+  letter-spacing: .18em;
+}
+
+.pacte-bookshelf__row {
+  display: grid;
+  align-items: end;
+  justify-content: center;
+  gap: clamp(.7rem, 1.5vw, 1.4rem);
+}
+
+.pacte-bookshelf__row--top {
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+  min-height: 310px;
+}
+
+.pacte-bookshelf__row--bottom {
+  grid-template-columns: repeat(3, minmax(140px, 205px));
+  min-height: 305px;
+  padding-top: 1.4rem;
+}
+
+.pacte-shelf {
+  position: relative;
+  height: 25px;
+  border: 1px solid #75492b;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #704627, #402313 45%, #211108);
+  box-shadow:
+    0 10px 18px rgba(0, 0, 0, .7),
+    inset 0 2px 2px rgba(255, 255, 255, .1);
+}
+
+.pacte-shelf i {
+  position: absolute;
+  top: 23px;
+  width: 14px;
+  height: 55px;
+  border: 1px solid #5a351f;
+  background: linear-gradient(90deg, #1d0e07, #55331e, #211108);
+}
+
+.pacte-shelf i:first-child { left: 8%; }
+.pacte-shelf i:last-child { right: 8%; }
+
+.pacte-shelf--lower {
+  margin-top: .25rem;
+}
+
+.pacte-bookshelf__feet {
+  display: flex;
+  justify-content: space-around;
+  padding: .8rem 10% 0;
+}
+
+.pacte-bookshelf__feet i {
+  width: 16px;
+  height: 43px;
+  border: 1px solid #633d23;
+  background: linear-gradient(90deg, #1d0e07, #55331e, #211108);
+}
+
+/* ================= LIVRES ================= */
+
+.pacte-book {
+  --book-main: #28563b;
+  --book-dark: #0c2115;
+
+  position: relative;
+  display: flex;
+  width: min(100%, 205px);
+  min-height: 280px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: .25rem;
+  padding: 1rem .8rem 1rem 1.1rem;
+  overflow: hidden;
+  border: 1px solid rgba(222, 190, 119, .65);
+  border-radius: 4px 8px 8px 4px;
+  color: #efdfb4;
+  text-align: center;
+  cursor: pointer;
+  background:
+    linear-gradient(90deg, rgba(0, 0, 0, .42), transparent 12%),
+    linear-gradient(145deg, var(--book-main), var(--book-dark));
+  box-shadow:
+    -5px 0 0 rgba(0, 0, 0, .4),
+    10px 16px 24px rgba(0, 0, 0, .62),
+    inset 0 0 0 5px rgba(0, 0, 0, .08);
+  transform-origin: bottom center;
+  transition:
+    transform .22s ease,
+    filter .22s ease,
+    box-shadow .22s ease;
+  font: inherit;
+}
+
+.pacte-book::before,
+.pacte-book::after {
+  content: "";
+  position: absolute;
+  left: 18px;
+  right: 10px;
+  height: 1px;
+  background: rgba(228, 198, 127, .38);
+}
+
+.pacte-book::before { top: 15px; }
+.pacte-book::after { bottom: 15px; }
+
+.pacte-book--2 { transform: rotate(-1.1deg); }
+.pacte-book--3 { transform: rotate(.9deg); }
+.pacte-book--4 { transform: rotate(-.7deg); }
+.pacte-book--5 { transform: rotate(-1deg); }
+.pacte-book--6 { transform: rotate(1deg); }
+.pacte-book--7 { transform: rotate(-.7deg); }
+
+.pacte-book:hover,
+.pacte-book:focus-visible,
+.pacte-book--active {
+  transform: translateY(-10px) rotate(0deg);
+  filter: brightness(1.13);
+  outline: none;
+  box-shadow:
+    -5px 0 0 rgba(0, 0, 0, .4),
+    12px 22px 30px rgba(0, 0, 0, .72),
+    0 0 0 2px rgba(199, 155, 76, .2);
+}
+
+.pacte-book:focus-visible {
+  box-shadow:
+    0 0 0 3px rgba(255, 222, 153, .7),
+    12px 22px 30px rgba(0, 0, 0, .72);
+}
+
+.pacte-book__binding {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 13px;
+  border-right: 1px solid rgba(228, 198, 127, .28);
+  background:
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, .45),
+      rgba(255, 255, 255, .06),
+      rgba(0, 0, 0, .3)
+    );
+}
+
+.pacte-book__ornament {
+  color: #dfc176;
+  font-size: .75rem;
+}
+
+.pacte-book__medallion {
+  display: grid;
+  width: 76px;
+  height: 76px;
+  place-items: center;
+  margin: .45rem 0 .65rem;
+  border: 1px solid rgba(228, 198, 127, .55);
+  border-radius: 50%;
+  color: #dfc176;
+  background: rgba(0, 0, 0, .1);
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, .25);
+}
+
+.pacte-book__icon {
+  display: block;
+  width: 49px;
+  height: 49px;
+}
+
+.pacte-book__icon svg,
+.pacte-open-book__icon svg {
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.pacte-book strong {
+  color: #f2dda8;
+  font-family: Georgia, serif;
+  font-size: 1.1rem;
+  font-variant: small-caps;
+  letter-spacing: .05em;
+}
+
+.pacte-book small {
+  color: #b6c0ae;
+  font-size: .65rem;
+  text-align: center;
+}
+
+.pacte-book--green { --book-main: #28563b; --book-dark: #0c2115; }
+.pacte-book--red { --book-main: #6d302a; --book-dark: #2a1110; }
+.pacte-book--blue { --book-main: #31566f; --book-dark: #112632; }
+.pacte-book--purple { --book-main: #58375d; --book-dark: #24142a; }
+.pacte-book--brown { --book-main: #704629; --book-dark: #2b170c; }
+.pacte-book--teal { --book-main: #14585a; --book-dark: #082b2c; }
+.pacte-book--slate { --book-main: #444749; --book-dark: #181a1b; }
+
+.pacte-library__hint {
+  position: relative;
+  z-index: 5;
+  display: flex;
+  justify-content: center;
+  gap: .9rem;
+  margin: 1.8rem auto;
+  padding: 0 1rem;
+  color: #e0c781;
+  font-family: Georgia, serif;
+  font-size: .9rem;
+  font-style: italic;
+  text-align: center;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, .95);
+}
+
+/* ================= LIVRE OUVERT ================= */
+
+.pacte-open-book {
+  position: relative;
+  z-index: 6;
+  display: grid;
+  grid-template-columns: minmax(230px, .65fr) minmax(0, 1.35fr);
+  max-width: 980px;
+  margin: 3rem auto 1rem;
+  overflow: hidden;
+  border: 1px solid #76502c;
+  border-radius: 4px;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, .72);
+}
+
+.pacte-open-book__cover {
+  padding: 1rem;
+  background: linear-gradient(145deg, #693b22, #29140c);
+}
+
+.pacte-open-book__cover-inner {
+  display: flex;
+  min-height: 430px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 2rem;
+  border: 1px solid rgba(221, 186, 111, .55);
+  color: #dcbf7c;
+  text-align: center;
+}
+
+.pacte-open-book__icon {
+  display: block;
+  width: 70px;
+  height: 70px;
+  margin-bottom: 1rem;
+}
+
+.pacte-open-book__cover-inner > span:not(.pacte-open-book__icon) {
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .22em;
+}
+
+.pacte-open-book__cover-inner h2 {
+  margin: .5rem 0;
+  color: #f0d9a5;
+  font-family: Georgia, serif;
+  font-size: 2rem;
+}
+
+.pacte-open-book__cover-inner i {
+  width: 90px;
+  height: 1px;
+  background: #b88d42;
+}
+
+.pacte-open-book__cover-inner p {
+  color: #c5b27d;
+  font-family: Georgia, serif;
+  font-size: .85rem;
+  font-style: italic;
+  line-height: 1.55;
+}
+
+.pacte-open-book__pages {
+  padding: 2rem;
+  color: #3a2a18;
+  background: linear-gradient(145deg, #eadbb8, #c6ae7b);
+}
+
+.pacte-open-book__heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .7rem;
+  color: #73521e;
+}
+
+.pacte-open-book__heading h3 {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 1.3rem;
+}
+
+.pacte-chronicle {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(80, 58, 30, .2);
+}
+
+.pacte-chronicle__number {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid rgba(105, 76, 31, .4);
+  color: #765724;
+  font-family: Georgia, serif;
+  font-weight: 700;
+}
+
+.pacte-chronicle span {
+  color: #85642d;
+  font-size: .6rem;
+  font-weight: 800;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.pacte-chronicle h4 {
+  margin: .2rem 0;
+  font-family: Georgia, serif;
+  font-size: 1.15rem;
+}
+
+.pacte-chronicle p {
+  margin: 0 0 .5rem;
+  color: #655236;
+  line-height: 1.5;
+}
+
+.pacte-chronicle a,
+.pacte-open-book__close {
+  color: #67491b;
+  font-size: .82rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.pacte-open-book__close {
+  display: inline-block;
+  margin-top: 1rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+}
+
+.pacte-open-book__empty {
+  margin: 2rem 0;
+  color: #67553a;
+  font-family: Georgia, serif;
+  font-style: italic;
+  text-align: center;
+}
+
+.pacte-lore-status {
+  padding: 4rem 2rem;
+  border: 1px solid #263b2c;
+  border-radius: 8px;
+  background: rgba(11, 27, 18, .92);
+  text-align: center;
+  color: #aeb9aa;
+}
+
+.pacte-lore-status--error {
+  color: #f0b5b5;
+}
+
+.pacte-lore-status h2 {
+  margin: 0 0 .5rem;
+  color: #f0dca9;
+}
+
+.pacte-lore-status button {
+  margin-top: 1rem;
+  padding: .7rem 1.2rem;
+  border: 0;
+  border-radius: 6px;
+  background: #b48735;
+  color: white;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ================= RESPONSIVE ================= */
+
+@media (max-width: 900px) {
+  .pacte-bookshelf__row--top,
+  .pacte-bookshelf__row--bottom {
+    grid-template-columns: repeat(2, minmax(135px, 1fr));
+  }
+
+  .pacte-open-book {
+    grid-template-columns: 1fr;
+  }
+
+  .pacte-open-book__cover-inner {
+    min-height: 260px;
+  }
+
+  .pacte-lore-page__backdrop {
+    background-position: center top;
+  }
+}
+
+@media (max-width: 560px) {
+  .pacte-lore-page__container {
+    width: calc(100% - 1rem);
+  }
+
+  .pacte-library__header {
+    padding-top: 2rem;
+  }
+
+  .pacte-bookshelf {
+    width: calc(100% - 1rem);
+    padding-inline: .5rem;
+    border-width: 5px;
+  }
+
+  .pacte-bookshelf__row--top,
+  .pacte-bookshelf__row--bottom {
+    gap: .5rem;
+  }
+
+  .pacte-book {
+    min-height: 220px;
+    padding-left: .7rem;
+  }
+
+  .pacte-book__medallion {
+    width: 58px;
+    height: 58px;
+  }
+
+  .pacte-book__icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .pacte-book strong {
+    font-size: .9rem;
+  }
+
+  .pacte-book small {
+    font-size: .56rem;
+  }
+
+  .pacte-open-book__pages {
+    padding: 1.2rem;
+  }
+
+  .pacte-library__hint {
+    font-size: .78rem;
+  }
+}

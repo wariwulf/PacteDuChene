@@ -1,0 +1,1095 @@
+@import "tailwindcss";
+
+:root {
+  --color-oak: #5b3b1e;
+  --color-oak-light: #7a5230;
+  --color-forest: #23412f;
+  --color-forest-deep: #08130d;
+  --color-forest-dark: #0b1711;
+  --color-forest-light: #31563e;
+  --color-moss: #4c6a45;
+  --color-moss-light: #66835d;
+  --color-gold: #c6a15b;
+  --color-gold-dark: #8f6f35;
+  --color-gold-light: #e2c98d;
+  --color-parchment: #f5e8c8;
+  --color-stone: #5f615b;
+  --color-wax: #7a2d2d;
+
+  --text-primary: #f5e8c8;
+  --text-secondary: #d7cfb4;
+  --text-muted: #9eaa9f;
+  --text-dark: #2d2d2d;
+
+  --border-subtle: rgba(245, 232, 200, 0.08);
+  --border-forest: rgba(76, 106, 69, 0.55);
+  --border-gold: rgba(198, 161, 91, 0.55);
+
+  --border-radius: 12px;
+  --border-radius-sm: 8px;
+  --border-radius-lg: 18px;
+  --border-radius-xl: 24px;
+
+  --shadow-soft: 0 4px 12px rgba(0, 0, 0, .25);
+  --shadow-strong: 0 10px 30px rgba(0,0,0,.45);
+  --shadow-card: 0 10px 30px rgba(0, 0, 0, .28);
+  --shadow-gold: 0 0 24px rgba(198, 161, 91, .10);
+
+  --transition-fast: .18s ease;
+  --transition-normal: .35s ease;
+  --transition-slow: .6s ease;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 50% -20%, rgba(76,106,69,.12), transparent 38%),
+    linear-gradient(180deg, var(--color-forest-dark) 0%, var(--color-forest-deep) 100%);
+  color: var(--text-primary);
+  font-family: var(--font-inter), Inter, system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+::selection {
+  background: rgba(198,161,91,.35);
+  color: #fff8e8;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+/* Reusable Pacte components. Plain CSS on purpose: compatible with Tailwind v4. */
+
+.pacte-card {
+  border: 1px solid var(--border-forest);
+  border-radius: var(--border-radius-xl);
+  background: linear-gradient(145deg, rgba(35,65,47,.94), rgba(11,23,17,.96));
+  box-shadow: var(--shadow-card);
+  transition: transform var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal);
+}
+
+.pacte-card:hover {
+  border-color: var(--border-gold);
+  box-shadow: var(--shadow-card), var(--shadow-gold);
+}
+
+.pacte-panel {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--border-radius-lg);
+  background: rgba(11,23,17,.78);
+  box-shadow: var(--shadow-soft);
+}
+
+.pacte-title {
+  color: var(--color-gold-light);
+  letter-spacing: .025em;
+}
+
+.pacte-eyebrow {
+  color: var(--color-gold);
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+}
+
+.pacte-divider {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  color: var(--color-gold);
+}
+
+.pacte-divider::before,
+.pacte-divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(90deg, transparent, rgba(198,161,91,.42), transparent);
+}
+
+.pacte-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  border-radius: var(--border-radius-sm);
+  padding: .625rem 1rem;
+  font-size: .875rem;
+  font-weight: 600;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast), transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.pacte-button:hover {
+  transform: translateY(-1px);
+}
+
+.pacte-button-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  border: 1px solid rgba(226,201,141,.45);
+  border-radius: var(--border-radius-sm);
+  padding: .625rem 1rem;
+  font-size: .875rem;
+  font-weight: 600;
+  background: linear-gradient(135deg,#a77c36,#c6a15b);
+  color: #17130c;
+}
+
+.pacte-button-primary:hover {
+  background: linear-gradient(135deg,#bd9148,#e2c98d);
+  box-shadow: 0 7px 20px rgba(0,0,0,.3);
+}
+
+.pacte-button-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  border: 1px solid rgba(76,106,69,.65);
+  border-radius: var(--border-radius-sm);
+  padding: .625rem 1rem;
+  font-size: .875rem;
+  font-weight: 600;
+  background: rgba(35,65,47,.55);
+  color: var(--text-primary);
+}
+
+.pacte-button-secondary:hover {
+  border-color: var(--border-gold);
+  background: rgba(76,106,69,.42);
+}
+
+.pacte-button-danger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .5rem;
+  border: 1px solid rgba(122,45,45,.65);
+  border-radius: var(--border-radius-sm);
+  padding: .625rem 1rem;
+  font-size: .875rem;
+  font-weight: 600;
+  background: rgba(122,45,45,.2);
+  color: #e9a3a3;
+}
+
+.pacte-button-danger:hover {
+  background: rgba(122,45,45,.38);
+  color: #ffd2d2;
+}
+
+.pacte-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .375rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: .25rem .625rem;
+  font-size: .75rem;
+  font-weight: 700;
+}
+
+.pacte-badge-gold {
+  border-color: rgba(198,161,91,.42);
+  background: rgba(198,161,91,.12);
+  color: var(--color-gold-light);
+}
+
+.pacte-badge-success {
+  border-color: rgba(79,125,87,.5);
+  background: rgba(79,125,87,.14);
+  color: #a9d3ad;
+}
+
+.pacte-badge-muted {
+  border-color: rgba(158,170,159,.2);
+  background: rgba(158,170,159,.08);
+  color: var(--text-muted);
+}
+
+.pacte-badge-danger {
+  border-color: rgba(122,45,45,.5);
+  background: rgba(122,45,45,.14);
+  color: #e9a3a3;
+}
+
+.pacte-input {
+  width: 100%;
+  border: 1px solid rgba(76,106,69,.7);
+  border-radius: var(--border-radius-sm);
+  padding: .75rem 1rem;
+  outline: none;
+  background: rgba(8,19,13,.72);
+  color: var(--text-primary);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.pacte-input:focus {
+  border-color: var(--color-gold);
+  box-shadow: 0 0 0 3px rgba(198,161,91,.09);
+}
+
+.pacte-portrait {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  aspect-ratio: 1;
+  border: 2px solid rgba(198,161,91,.62);
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(76,106,69,.5), rgba(8,19,13,.95));
+  box-shadow: 0 0 0 4px rgba(198,161,91,.06), var(--shadow-soft);
+}
+
+.pacte-page-texture {
+  position: relative;
+}
+
+.pacte-page-texture::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  opacity: .035;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(245,232,200,.9) 0 1px, transparent 1px),
+    radial-gradient(circle at 80% 70%, rgba(198,161,91,.8) 0 1px, transparent 1px);
+  background-size: 46px 46px, 63px 63px;
+}
+
+
+/* ==========================================================
+   PACTE DU CHÊNE — LORE
+   Bibliothèque immersive
+   ========================================================== */
+
+.pacte-lore-page {
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100vh - 68px);
+  overflow-x: hidden;
+  color: #eee4ca;
+  background-color: #050b08;
+  background-image:
+    linear-gradient(
+      180deg,
+      rgba(2, 8, 5, .06) 0%,
+      rgba(2, 8, 5, .14) 55%,
+      rgba(2, 8, 5, .5) 100%
+    ),
+    url("/images/lore-library-full-background.png");
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-size: 100% auto;
+}
+
+/*
+ * La scène garde exactement le ratio de l'image 1536 × 1024.
+ * Cela permet de positionner les livres par pourcentage et de les
+ * superposer proprement au meuble vide présent dans le décor.
+ */
+.pacte-lore-page__container {
+  width: 100%;
+  margin: 0;
+  padding: 0 0 4rem;
+}
+
+.pacte-lore-status {
+  width: min(720px, calc(100% - 2rem));
+  margin: 4rem auto;
+  padding: 3rem 2rem;
+  border: 1px solid rgba(198, 161, 91, .3);
+  border-radius: 12px;
+  background: rgba(6, 16, 10, .88);
+  box-shadow: 0 20px 60px rgba(0,0,0,.55);
+  text-align: center;
+  color: #c6cbbd;
+}
+
+.pacte-lore-status h1 {
+  margin: 0 0 .6rem;
+  color: #f0dca9;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.pacte-lore-status--error {
+  color: #efb5b5;
+}
+
+.pacte-lore-status button {
+  margin-top: 1rem;
+  padding: .7rem 1.2rem;
+  border: 1px solid rgba(226, 201, 141, .4);
+  border-radius: 6px;
+  background: #b48735;
+  color: #fff8e8;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ================= SCÈNE ================= */
+
+.pacte-library {
+  position: relative;
+  width: 100%;
+  margin: 0;
+  background: transparent;
+}
+
+.pacte-library__scene {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1536 / 1024;
+}
+
+/*
+ * Zone transparente placée exactement au-dessus du meuble vide
+ * de l'image de fond.
+ */
+.pacte-bookshelf {
+  position: absolute;
+  left: 20.5%;
+  top: 26%;
+  width: 59%;
+  height: 56%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+/* L'ancienne plaque HTML n'est plus nécessaire :
+   elle est déjà présente dans l'image de bibliothèque. */
+.pacte-bookshelf__plaque,
+.pacte-shelf,
+.pacte-bookshelf__feet {
+  display: none;
+}
+
+.pacte-bookshelf__row {
+  position: absolute;
+  display: grid;
+  align-items: end;
+  justify-items: center;
+  margin: 0;
+  padding: 0;
+}
+
+.pacte-bookshelf__row--top {
+  left: 3%;
+  top: 2%;
+  width: 94%;
+  height: 48%;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 2.3%;
+}
+
+.pacte-bookshelf__row--bottom {
+  left: 18%;
+  top: 53%;
+  width: 64%;
+  height: 45%;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4%;
+}
+
+/* ================= LIVRES ================= */
+
+.pacte-book {
+  --book-main: #28563b;
+  --book-dark: #0c2115;
+
+  position: relative;
+  display: flex;
+  width: min(100%, 185px);
+  height: 92%;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: .2rem;
+  padding: 1rem .65rem 1rem .95rem;
+  overflow: hidden;
+  border: 1px solid rgba(222,190,119,.72);
+  border-radius: 4px 8px 8px 4px;
+  color: #efdfb4;
+  text-decoration: none;
+  background:
+    linear-gradient(90deg, rgba(0,0,0,.42), transparent 12%),
+    linear-gradient(145deg, var(--book-main), var(--book-dark));
+  box-shadow:
+    -5px 0 0 rgba(0,0,0,.4),
+    9px 15px 24px rgba(0,0,0,.7),
+    inset 0 0 0 5px rgba(0,0,0,.08),
+    inset 9px 0 13px rgba(0,0,0,.2);
+  transform-origin: bottom center;
+  transition:
+    transform .24s ease,
+    filter .24s ease,
+    box-shadow .24s ease;
+}
+
+.pacte-book::before,
+.pacte-book::after {
+  content: "";
+  position: absolute;
+  left: 17px;
+  right: 9px;
+  height: 1px;
+  background: rgba(228,198,127,.42);
+}
+
+.pacte-book::before { top: 14px; }
+.pacte-book::after { bottom: 14px; }
+
+.pacte-book--2 { transform: rotate(-1.2deg); }
+.pacte-book--3 { transform: rotate(.9deg); }
+.pacte-book--4 { transform: rotate(-.8deg); }
+.pacte-book--5 { transform: rotate(-1deg); }
+.pacte-book--6 { transform: rotate(1deg); }
+.pacte-book--7 { transform: rotate(-.8deg); }
+
+.pacte-book:hover,
+.pacte-book--active {
+  transform: translateY(-12px) rotate(0deg) scale(1.015);
+  filter: brightness(1.13);
+  box-shadow:
+    -5px 0 0 rgba(0,0,0,.4),
+    12px 23px 30px rgba(0,0,0,.76),
+    0 0 0 2px rgba(199,155,76,.24),
+    0 0 22px rgba(199,155,76,.08);
+}
+
+.pacte-book__binding {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 12px;
+  border-right: 1px solid rgba(228,198,127,.3);
+  background:
+    linear-gradient(
+      90deg,
+      rgba(0,0,0,.5),
+      rgba(255,255,255,.06),
+      rgba(0,0,0,.3)
+    );
+}
+
+.pacte-book__ornament {
+  color: #dfc176;
+  font-size: .68rem;
+  line-height: 1;
+}
+
+.pacte-book__medallion {
+  display: grid;
+  width: clamp(48px, 5vw, 70px);
+  height: clamp(48px, 5vw, 70px);
+  place-items: center;
+  margin: .25rem 0 .35rem;
+  border: 1px solid rgba(228,198,127,.55);
+  border-radius: 50%;
+  color: #dfc176;
+  background: rgba(0,0,0,.1);
+  box-shadow: inset 0 0 20px rgba(0,0,0,.25);
+}
+
+.pacte-book__icon {
+  display: block;
+  width: 62%;
+  height: 62%;
+}
+
+.pacte-book__icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.pacte-book strong {
+  color: #f2dda8;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(.78rem, 1.05vw, 1.05rem);
+  font-variant: small-caps;
+  letter-spacing: .04em;
+  text-align: center;
+}
+
+.pacte-book small {
+  color: #b6c0ae;
+  font-size: clamp(.5rem, .62vw, .65rem);
+  line-height: 1.2;
+  text-align: center;
+}
+
+.pacte-book--green { --book-main:#28563b; --book-dark:#0c2115; }
+.pacte-book--red { --book-main:#6d302a; --book-dark:#2a1110; }
+.pacte-book--blue { --book-main:#31566f; --book-dark:#112632; }
+.pacte-book--purple { --book-main:#58375d; --book-dark:#24142a; }
+.pacte-book--brown { --book-main:#704629; --book-dark:#2b170c; }
+.pacte-book--teal { --book-main:#14585a; --book-dark:#082b2c; }
+.pacte-book--slate { --book-main:#444749; --book-dark:#181a1b; }
+
+.pacte-library__hint {
+  display: flex;
+  justify-content: center;
+  gap: .9rem;
+  margin: 0 auto 2.2rem;
+  padding: 0 1rem;
+  color: #cdbb82;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: .95rem;
+  font-style: italic;
+  text-align: center;
+  text-shadow: 0 2px 8px #000;
+}
+
+.pacte-library__hint span:first-child,
+.pacte-library__hint span:last-child {
+  color: #dfc176;
+}
+
+/* ================= REGISTRE OUVERT ================= */
+
+.pacte-open-book {
+  display: grid;
+  grid-template-columns: minmax(230px, .65fr) minmax(0, 1.35fr);
+  width: min(980px, calc(100% - 2rem));
+  margin: 2rem auto 0;
+  overflow: hidden;
+  border: 1px solid #76502c;
+  border-radius: 4px;
+  box-shadow: 0 30px 70px rgba(0,0,0,.72);
+  scroll-margin-top: 90px;
+}
+
+.pacte-open-book__cover {
+  padding: 1rem;
+  background:
+    linear-gradient(145deg, rgba(105,59,34,.96), rgba(41,20,12,.98));
+}
+
+.pacte-open-book__cover-inner {
+  display: flex;
+  min-height: 430px;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  padding: 2rem;
+  border: 1px solid rgba(221,186,111,.55);
+  color: #dcbf7c;
+  text-align: center;
+}
+
+.pacte-open-book__icon {
+  width: 70px;
+  height: 70px;
+  margin-bottom: 1rem;
+}
+
+.pacte-open-book__icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.pacte-open-book__cover-inner > span {
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .22em;
+}
+
+.pacte-open-book__cover-inner h2 {
+  margin: .5rem 0;
+  color: #f0d9a5;
+  font-family: Georgia, serif;
+  font-size: 2rem;
+}
+
+.pacte-open-book__cover-inner i {
+  width: 90px;
+  height: 1px;
+  background: #b88d42;
+}
+
+.pacte-open-book__cover-inner p {
+  color: #c5b27d;
+  font-family: Georgia, serif;
+  font-size: .85rem;
+  font-style: italic;
+  line-height: 1.55;
+}
+
+.pacte-open-book__pages {
+  padding: 2rem;
+  color: #3a2a18;
+  background: linear-gradient(145deg, #eadbb8, #c6ae7b);
+}
+
+.pacte-open-book__heading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .7rem;
+  color: #73521e;
+}
+
+.pacte-open-book__heading h3 {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 1.3rem;
+}
+
+.pacte-chronicle {
+  display: grid;
+  grid-template-columns: 42px 1fr;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(80,58,30,.2);
+}
+
+.pacte-chronicle__number {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid rgba(105,76,31,.4);
+  color: #765724;
+  font-family: Georgia, serif;
+  font-weight: 700;
+}
+
+.pacte-chronicle span {
+  color: #85642d;
+  font-size: .6rem;
+  font-weight: 800;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+
+.pacte-chronicle h4 {
+  margin: .2rem 0;
+  font-family: Georgia, serif;
+  font-size: 1.15rem;
+}
+
+.pacte-chronicle p {
+  margin: 0 0 .5rem;
+  color: #655236;
+  line-height: 1.5;
+}
+
+.pacte-chronicle a,
+.pacte-open-book__close {
+  color: #67491b;
+  font-size: .82rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.pacte-open-book__close {
+  display: inline-block;
+  margin-top: 1rem;
+}
+
+.pacte-open-book__empty {
+  margin: 2rem 0;
+  color: #67553a;
+  font-family: Georgia, serif;
+  font-style: italic;
+  text-align: center;
+}
+
+/* ================= RESPONSIVE ================= */
+
+@media (max-width: 900px) {
+  .pacte-lore-page {
+    background-size: auto 100vh;
+  }
+
+  .pacte-library__scene {
+    aspect-ratio: auto;
+    min-height: calc(100vh - 68px);
+  }
+
+  .pacte-bookshelf {
+    left: 12%;
+    top: 28%;
+    width: 76%;
+    height: 52%;
+  }
+
+  .pacte-bookshelf__row--top {
+    gap: 2%;
+  }
+
+  .pacte-bookshelf__row--bottom {
+    left: 15%;
+    width: 70%;
+  }
+
+  .pacte-book {
+    width: min(100%, 150px);
+  }
+
+  .pacte-open-book {
+    grid-template-columns: 1fr;
+  }
+
+  .pacte-open-book__cover-inner {
+    min-height: 260px;
+  }
+}
+
+@media (max-width: 560px) {
+  .pacte-lore-page {
+    background-size: auto 620px;
+    background-position: center top;
+  }
+
+  .pacte-library__scene {
+    min-height: 620px;
+  }
+
+  .pacte-bookshelf {
+    left: 5%;
+    top: 27%;
+    width: 90%;
+    height: 55%;
+  }
+
+  .pacte-bookshelf__row--top {
+    left: 1%;
+    width: 98%;
+    height: 48%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 8%;
+  }
+
+  .pacte-bookshelf__row--bottom {
+    left: 10%;
+    top: 55%;
+    width: 80%;
+    height: 43%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2%;
+  }
+
+  .pacte-book {
+    width: min(100%, 125px);
+    height: 100%;
+    padding: .7rem .45rem .7rem .7rem;
+  }
+
+  .pacte-book__medallion {
+    width: 42px;
+    height: 42px;
+  }
+
+  .pacte-book__ornament {
+    font-size: .55rem;
+  }
+
+  .pacte-library__hint {
+    margin-top: 1rem;
+    font-size: .8rem;
+  }
+
+  .pacte-open-book {
+    width: calc(100% - 1rem);
+  }
+
+  .pacte-open-book__pages {
+    padding: 1.2rem;
+  }
+}
+
+
+/* ==========================================================
+   PACTE DU CHÊNE — LECTURE D'UNE CHRONIQUE
+   ========================================================== */
+
+.lore-reader-page {
+  position: relative;
+  min-height: calc(100vh - 68px);
+  padding: 3rem 1rem 5rem;
+  overflow: hidden;
+  color: #302316;
+  background:
+    linear-gradient(rgba(3, 11, 7, .68), rgba(3, 11, 7, .82)),
+    url("/images/lore-library-full-background.png") center top / cover no-repeat fixed;
+}
+
+.lore-reader-page__container {
+  position: relative;
+  z-index: 1;
+  width: min(980px, 100%);
+  margin: 0 auto;
+}
+
+.lore-reader-page__back {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  margin-bottom: 1.25rem;
+  color: #e2c98d;
+  font-weight: 700;
+  text-shadow: 0 2px 8px #000;
+}
+
+.lore-reader-page__back:hover {
+  color: #fff0c9;
+}
+
+.lore-manuscript {
+  position: relative;
+  padding: clamp(1.5rem, 4vw, 3.5rem);
+  border: 1px solid rgba(198,161,91,.65);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,.12), transparent 35%),
+    linear-gradient(145deg, #f1e3bf, #d2bc8b);
+  box-shadow:
+    0 30px 80px rgba(0,0,0,.68),
+    inset 0 0 50px rgba(96,68,27,.12);
+}
+
+.lore-manuscript__corner {
+  position: absolute;
+  color: #9a7434;
+  font-size: 1.2rem;
+}
+
+.lore-manuscript__corner--tl { top: 1rem; left: 1rem; }
+.lore-manuscript__corner--tr { top: 1rem; right: 1rem; }
+.lore-manuscript__corner--bl { bottom: 1rem; left: 1rem; }
+.lore-manuscript__corner--br { bottom: 1rem; right: 1rem; }
+
+.lore-manuscript__cover-line {
+  height: 1px;
+  margin-bottom: 2rem;
+  background: linear-gradient(90deg, transparent, #9d7938, transparent);
+}
+
+.lore-manuscript__cover-line--bottom {
+  margin: 2rem 0 0;
+}
+
+.lore-manuscript__header {
+  text-align: center;
+}
+
+.lore-manuscript__category {
+  display: inline-flex;
+  align-items: center;
+  gap: .6rem;
+  color: #86652c;
+  font-size: .7rem;
+  font-weight: 800;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+}
+
+.lore-manuscript__category svg {
+  width: 32px;
+  height: 32px;
+}
+
+.lore-manuscript__ornament {
+  display: flex;
+  align-items: center;
+  gap: .7rem;
+  justify-content: center;
+  margin: .8rem auto;
+  color: #a37a31;
+}
+
+.lore-manuscript__ornament span {
+  width: 70px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #a37a31);
+}
+
+.lore-manuscript__ornament span:last-child {
+  background: linear-gradient(90deg, #a37a31, transparent);
+}
+
+.lore-manuscript__header h1 {
+  margin: 0;
+  color: #3b2916;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 5vw, 3.7rem);
+  font-variant: small-caps;
+  line-height: 1.1;
+}
+
+.lore-manuscript__header p {
+  max-width: 720px;
+  margin: 1rem auto 0;
+  color: #6a5331;
+  font-family: Georgia, serif;
+  font-style: italic;
+  line-height: 1.6;
+}
+
+.lore-manuscript__rule {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin: 2rem 0;
+  color: #987337;
+}
+
+.lore-manuscript__rule i {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(126,91,35,.4), transparent);
+}
+
+.lore-manuscript__content {
+  max-width: 760px;
+  margin: 0 auto;
+  color: #382a1b;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.08rem;
+  line-height: 1.9;
+}
+
+.lore-manuscript__content p {
+  margin: 0 0 1.2rem;
+}
+
+.lore-manuscript__paragraph--first::after {
+  content: "";
+  display: block;
+  clear: both;
+}
+
+.lore-manuscript__dropcap {
+  float: left;
+  margin: .08em .12em 0 0;
+  color: #805f29;
+  font-size: 4.2em;
+  font-weight: 700;
+  line-height: .78;
+}
+
+.lore-manuscript__footer {
+  display: flex;
+  justify-content: center;
+  gap: .7rem;
+  margin-top: 2.5rem;
+  color: #87652d;
+  font-size: .65rem;
+  font-weight: 800;
+  letter-spacing: .22em;
+}
+
+.lore-reader-page__seal {
+  display: flex;
+  justify-content: center;
+  gap: .8rem;
+  margin: 1.5rem 0 0;
+  color: #dfc176;
+  font-family: Georgia, serif;
+  font-size: .75rem;
+  font-style: italic;
+  text-align: center;
+  text-shadow: 0 2px 8px #000;
+}
+
+@media (max-width: 600px) {
+  .lore-reader-page {
+    padding: 1.5rem .65rem 3rem;
+    background-attachment: scroll;
+  }
+
+  .lore-manuscript {
+    padding: 1.25rem;
+  }
+
+  .lore-manuscript__content {
+    font-size: 1rem;
+    line-height: 1.75;
+  }
+}
+
+/* =========================================================
+   MUSIQUE D'AMBIANCE — PACTE DU CHÊNE
+   À ajouter à globals.css
+   ========================================================= */
+
+.ambient-music {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+
+  width: 46px;
+  height: 46px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid rgba(199, 155, 76, 0.55);
+  border-radius: 50%;
+
+  background: rgba(5, 20, 13, 0.88);
+  color: #d6b56a;
+
+  font-family: Georgia, serif;
+  font-size: 20px;
+
+  cursor: pointer;
+
+  box-shadow:
+    0 4px 15px rgba(0, 0, 0, 0.45),
+    inset 0 0 12px rgba(199, 155, 76, 0.08);
+
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease;
+
+  z-index: 1000;
+}
+
+.ambient-music:hover {
+  transform: scale(1.08);
+  background: rgba(35, 27, 12, 0.95);
+  border-color: rgba(199, 155, 76, 0.9);
+}
+
+.ambient-music span {
+  line-height: 1;
+}
