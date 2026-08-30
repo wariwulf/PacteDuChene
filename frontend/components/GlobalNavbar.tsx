@@ -177,7 +177,9 @@ export default function GlobalNavbar() {
             aria-label="Le Pacte du Chêne"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#c6a15b]/25 bg-[#23412f]/60 text-xl shadow-inner transition group-hover:border-[#c6a15b]/60 group-hover:bg-[#23412f]/90">
-              🌳
+              <img
+                src="/images/member/arbre-pacte.png">
+              </img>
             </span>
 
             <span className="hidden sm:block">

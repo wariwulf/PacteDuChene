@@ -23,28 +23,8 @@ export const navigation: NavigationItem[] = [
     access: "public",
   },
   {
-    label: "Boutiques",
-    href: "/boutiques",
-    access: "member",
-  },
-  {
-    label: "Discord",
-    href: "/discord",
-    access: "member",
-  },
-  {
-    label: "Événements",
-    href: "/espace-membre/evenements",
-    access: "member",
-  },
-  {
-    label: "Quêtes",
-    href: "/espace-membre/quetes",
-    access: "member",
-  },
-  {
-    label: "Exploits",
-    href: "/espace-membre/exploits",
+    label: "Clan",
+    href: "/clan",
     access: "member",
   },
   {
@@ -58,8 +38,28 @@ export const navigation: NavigationItem[] = [
     access: "member",
   },
   {
-    label: "Clan",
-    href: "/clan",
+    label: "Quêtes",
+    href: "/espace-membre/quetes",
+    access: "member",
+  },
+  {
+    label: "Exploits",
+    href: "/espace-membre/exploits",
+    access: "member",
+  },
+  {
+    label: "Boutiques",
+    href: "/boutiques",
+    access: "member",
+  },
+  {
+    label: "Événements",
+    href: "/espace-membre/evenements",
+    access: "member",
+  },
+  {
+    label: "Discord",
+    href: "/discord",
     access: "member",
   },
 ];

@@ -1,4 +1,4 @@
-﻿import { PaxDeiCharacter } from "./paxdei.model";
+import { PaxDeiCharacter } from "./paxdei.model";
 import { PaxDeiCharacterInput } from "./paxdei.types";
 
 export class PaxDeiRepository {
@@ -17,7 +17,10 @@ export class PaxDeiRepository {
     return PaxDeiCharacter.create(data);
   }
 
-  async update(id: string, data: Partial<PaxDeiCharacterInput>) {
+  async update(
+    id: string,
+    data: Partial<PaxDeiCharacterInput>
+  ) {
     return PaxDeiCharacter.findByIdAndUpdate(
       id,
       data,
@@ -31,6 +34,26 @@ export class PaxDeiRepository {
   async delete(id: string) {
     return PaxDeiCharacter.findByIdAndDelete(id);
   }
+
+  async clearMainCharacter(
+    memberId: string,
+    exceptId?: string
+  ) {
+    const filter: Record<string, unknown> = {
+      memberId,
+      isMainCharacter: true,
+    };
+
+    if (exceptId) {
+      filter._id = { $ne: exceptId };
+    }
+
+    await PaxDeiCharacter.updateMany(
+      filter,
+      { $set: { isMainCharacter: false } }
+    );
+  }
 }
 
-export const paxDeiRepository = new PaxDeiRepository();
+export const paxDeiRepository =
+  new PaxDeiRepository();

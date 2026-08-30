@@ -267,7 +267,7 @@ export default function MemberPage() {
       <div className="mx-auto max-w-5xl">
 
         <Link
-          href="/membres"
+          href="/clan"
           className="mb-8 inline-block text-sm font-semibold text-amber-400 transition hover:text-amber-300"
         >
           ← Retour aux membres

@@ -293,7 +293,7 @@ export default function QueteDetailPage() {
     <main className="min-h-screen bg-[#173d2b] text-white">
       <div className="mx-auto max-w-5xl px-6 py-12">
         <Link
-          href="/quetes"
+          href="/espace-membre/quetes/"
           className="text-sm text-gray-400 hover:text-white"
         >
           ← Retour aux quêtes

@@ -1,0 +1,50 @@
+.member-page-background {
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  overflow: clip;
+  background: #071b12;
+  color: white;
+}
+
+.member-page-background__art,
+.member-page-background__veil {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.member-page-background__art {
+  z-index: -3;
+  background-image: url("/images/personnage-page-background.png");
+  background-position: center center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  transform: scale(1.015);
+}
+
+.member-page-background__veil {
+  z-index: -2;
+  background:
+    linear-gradient(180deg, rgba(3, 15, 10, 0.82) 0%, rgba(3, 19, 12, 0.52) 22%, rgba(3, 18, 12, 0.72) 100%),
+    radial-gradient(circle at 50% 18%, rgba(191, 143, 47, 0.10), transparent 34%),
+    linear-gradient(90deg, rgba(2, 13, 9, 0.28), transparent 38%, rgba(2, 13, 9, 0.28));
+}
+
+.member-page-background__content {
+  position: relative;
+  z-index: 0;
+  min-height: 100vh;
+}
+
+@media (max-width: 900px) {
+  .member-page-background__art {
+    background-position: 58% center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .member-page-background__art {
+    transform: none;
+  }
+}

@@ -53,4 +53,3 @@ export default function QuetesPage() {
     {userQuests.length > 0 && <section className="mt-12"><h2 className="text-2xl font-bold">Mon historique</h2><div className="mt-5 space-y-3">{userQuests.map((u) => <article key={`${u.userId}-${u.questId}`} className="flex items-center justify-between rounded-xl border border-white/10 bg-black/20 p-5"><span>{quests.find((q) => q.questId === u.questId)?.name ?? u.questId}</span><Link href={`/quetes/${u.questId}`} className="rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20">Ouvrir</Link></article>)}</div></section>}
   </div></main>;
 }
-

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import PageHeader from "@/components/member/PageHeader";
 
+export const dynamic = "force-dynamic";
+
 interface NewsArticle {
   _id: string;
   title: string;
