@@ -177,16 +177,17 @@ export class DiscordOAuthService {
 
       const isCircleMember = roleIds.includes(circleRoleId);
 
-      if (
-        isCircleMember &&
-        user.role !== UserRole.OWNER &&
-        user.role !== UserRole.ADMIN
-      ) {
-        await this.userRepository.updateById(user._id.toString(), {
-          role: UserRole.OWNER,
+          if (
+      isCircleMember &&
+      user.role !== UserRole.OWNER &&
+      user.role !== UserRole.ADMIN
+    ) {
+      await this.userRepository.updateById(user._id.toString(), {
+          role: UserRole.ADMIN,
         });
-        user.role = UserRole.ADMIN;
-      }
+
+      user.role = UserRole.ADMIN;
+    }
 
       return user;
     } catch (error) {
