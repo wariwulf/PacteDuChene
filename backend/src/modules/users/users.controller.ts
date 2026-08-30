@@ -409,3 +409,113 @@ export async function uploadAvatar(
     });
   }
 }
+
+/**
+ * Upload du portrait personnel du membre connecté.
+ * Un joueur ne peut jamais choisir l'identifiant d'un autre membre.
+ */
+export async function uploadMyAvatar(
+  req: AuthenticatedRequest,
+  res: Response
+) {
+  try {
+    const current = actor(req);
+    const file = (req as any).file as Express.Multer.File | undefined;
+
+    if (!file) {
+      return res.status(400).json({
+        success: false,
+        message: "Aucun fichier reçu.",
+      });
+    }
+
+    const baseUrl =
+      process.env.PUBLIC_API_URL ||
+      `${req.protocol}://${req.get("host")}`;
+    const avatar = `${baseUrl}/uploads/avatars/${file.filename}`;
+
+    const { User } = await import("./user.model");
+    const user = await User.findOneAndUpdate(
+      {
+        _id: current.id,
+        status: { $ne: "DELETED" },
+      },
+      {
+        $set: {
+          "profile.avatar": avatar,
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).select("-passwordHash");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Membre introuvable.",
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: { avatar, user },
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Impossible d'importer votre portrait.",
+    });
+  }
+}
+
+/** Supprime le portrait personnalisé du membre connecté. */
+export async function deleteMyAvatar(
+  req: AuthenticatedRequest,
+  res: Response
+) {
+  try {
+    const current = actor(req);
+    const { User } = await import("./user.model");
+
+    const user = await User.findOneAndUpdate(
+      {
+        _id: current.id,
+        status: { $ne: "DELETED" },
+      },
+      {
+        $unset: {
+          "profile.avatar": 1,
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).select("-passwordHash");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "Membre introuvable.",
+      });
+    }
+
+    return res.json({
+      success: true,
+      data: { user },
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Impossible de supprimer votre portrait.",
+    });
+  }
+}

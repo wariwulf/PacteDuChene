@@ -6,7 +6,8 @@ import {
 } from "./economy.constants";
 import type { EconomyBalances } from "./economy.types";
 import { economyTransactionRepository } from "./economy-transaction.repository";
-import { economyVoiceSessionRepository } from "./economy-voice-session.repository";
+import { EconomyVoiceSession } from "./economy-voice-session.model";
+import { User } from "../users/user.model";
 
 function readBalance(
   balances: unknown,
@@ -49,6 +50,16 @@ function assertCurrency(
   }
 }
 
+export interface VoiceRewardMember {
+  discordId: string;
+  channelId: string | null;
+}
+
+export interface VoiceRewardResult {
+  rewardedUsers: number;
+  bronzeGranted: number;
+}
+
 export class EconomyService {
   constructor(
     private readonly economyRepository = new EconomyRepository()
@@ -72,12 +83,14 @@ export class EconomyService {
 
   /**
    * Récupérer l'historique économique d'un utilisateur.
+   *
+   * L'historique est stocké dans EconomyTransaction.
    */
   async getHistory(
     userId: string,
     limit = 50
   ) {
-    return this.economyRepository.findByUserId(
+    return economyTransactionRepository.findByUserId(
       userId,
       limit
     );
@@ -98,7 +111,6 @@ export class EconomyService {
       | "admin_remove"
       | "exchange"
       | "daily_reward"
-      | "voice_reward"
       | "other";
     source?: string;
     sourceId?: string;
@@ -192,14 +204,6 @@ export class EconomyService {
 
   /**
    * Récompense quotidienne Discord.
-   *
-   * Une seule récompense est possible par jour calendaire UTC
-   * et par utilisateur.
-   *
-   * IMPORTANT :
-   * Le service économique ne contient aucune icône de monnaie.
-   * L'identifiant de la monnaie est retourné et la présentation
-   * est gérée par la couche cliente.
    */
   async claimDailyReward(
     userId: string
@@ -227,9 +231,6 @@ export class EconomyService {
         currencyId
       );
 
-    /**
-     * La récompense a déjà été réclamée aujourd'hui.
-     */
     if (existing) {
       const balances =
         await this.getBalances(userId);
@@ -238,18 +239,14 @@ export class EconomyService {
         granted: false,
         amount,
         currencyId,
-        currencyImage: "/images/economy/currency-bronze.png",
-        newBalance: balances.bronze, 
+        currencyImage:
+          "/images/economy/currency-bronze.png",
+        newBalance: balances.bronze,
         message:
           "⏳ Tu as déjà récupéré ta récompense journalière aujourd'hui.",
       };
     }
 
-    /**
-     * Réservation de la récompense.
-     *
-     * L'index unique protège contre deux appels simultanés.
-     */
     let reservation;
 
     try {
@@ -265,9 +262,6 @@ export class EconomyService {
             "Récompense quotidienne Discord",
         });
     } catch (error: any) {
-      /**
-       * Une autre requête a déjà réservé la récompense.
-       */
       if (error?.code === 11000) {
         const balances =
           await this.getBalances(userId);
@@ -276,7 +270,8 @@ export class EconomyService {
           granted: false,
           amount,
           currencyId,
-          currencyImage: "/images/economy/currency-bronze.png",
+          currencyImage:
+            "/images/economy/currency-bronze.png",
           newBalance: balances.bronze,
           message:
             "⏳ Tu as déjà récupéré ta récompense journalière aujourd'hui.",
@@ -286,9 +281,6 @@ export class EconomyService {
       throw error;
     }
 
-    /**
-     * Crédit effectif.
-     */
     try {
       const balances =
         await this.addBalance(
@@ -301,16 +293,13 @@ export class EconomyService {
         granted: true,
         amount,
         currencyId,
-        currencyImage: "/images/economy/currency-bronze.png",
+        currencyImage:
+          "/images/economy/currency-bronze.png",
         newBalance: balances.bronze,
         message:
           "Récompense quotidienne accordée.",
       };
     } catch (error) {
-      /**
-       * Le crédit ayant échoué, on libère la réservation
-       * afin que la récompense puisse être retentée.
-       */
       await economyTransactionRepository.deleteById(
         reservation._id.toString()
       );
@@ -320,210 +309,227 @@ export class EconomyService {
   }
 
   /**
-   * Récompenses de présence vocale Discord.
+   * Récompense de présence vocale Discord.
    *
-   * Règle actuelle :
-   * - 30 minutes de présence observée = 10 Bronze
-   * - plusieurs intervalles peuvent être crédités lors d'un tick
-   * - le même intervalle ne peut pas être crédité deux fois
+   * 30 minutes cumulées en vocal = 10 Bronze.
    *
-   * Le bot transmet uniquement les membres actuellement présents.
-   * Le backend reste responsable du calcul et du crédit.
+   * Le temps est conservé dans EconomyVoiceSession.
+   * Les différentes sessions vocales d'un même membre
+   * peuvent donc continuer à alimenter le compteur.
    */
   async rewardVoiceTick(
     guildId: string,
-    members: Array<{
-      discordId: string;
-      channelId?: string | null;
-    }>
-  ): Promise<{
-    rewardedUsers: number;
-    bronzeGranted: number;
-  }> {
+    members: VoiceRewardMember[]
+  ): Promise<VoiceRewardResult> {
+    const VOICE_INTERVAL_SECONDS = 30 * 60;
+    const VOICE_REWARD_BRONZE = 10;
+
     const now = new Date();
-    const intervalSeconds = 30 * 60;
-    const rewardAmount = 10;
-
-    const normalizedMembers = members
-      .map((member) => ({
-        discordId: String(member.discordId ?? "").trim(),
-        channelId:
-          member.channelId === undefined || member.channelId === null
-            ? null
-            : String(member.channelId),
-      }))
-      .filter((member) => member.discordId.length > 0);
-
-    await economyVoiceSessionRepository.deactivateMissing(
-      guildId,
-      normalizedMembers.map((member) => member.discordId)
-    );
 
     let rewardedUsers = 0;
     let bronzeGranted = 0;
 
-    for (const member of normalizedMembers) {
-      const botMember = await this.resolveVoiceMember(
-        member.discordId
-      );
+    const activeDiscordIds = new Set<string>();
 
-      if (!botMember) {
+    for (const member of members) {
+      const discordId = String(
+        member.discordId ?? ""
+      ).trim();
+
+      if (!discordId) {
         continue;
       }
+
+      activeDiscordIds.add(discordId);
+
+      /*
+       * Recherche du compte Pacte lié au compte Discord.
+       *
+       * Le modèle User contient discord.discordId et
+       * l'identifiant Mongo du membre est utilisé comme userId
+       * dans EconomyVoiceSession.
+       */
+      const user = await User.findOne({
+        "discord.discordId": discordId,
+        status: { $ne: "DELETED" },
+      });
+
+      /*
+       * Un joueur Discord qui n'a pas encore de compte Pacte
+       * ne peut pas recevoir de monnaie.
+       */
+      if (!user) {
+        continue;
+      }
+
+      const userId = user._id.toString();
 
       let session =
-        await economyVoiceSessionRepository.find(
+        await EconomyVoiceSession.findOne({
           guildId,
-          member.discordId
-        );
-
-      if (!session) {
-        session = await economyVoiceSessionRepository.create({
-          guildId,
-          discordId: member.discordId,
-          userId: botMember.memberId,
-          channelId: member.channelId,
-          startedAt: now,
-          lastSeenAt: now,
+          discordId,
         });
 
-        continue;
-      }
+      /*
+       * Première détection du membre.
+       */
+      if (!session) {
+        session =
+          await EconomyVoiceSession.create({
+            guildId,
+            discordId,
+            userId,
+            channelId: member.channelId ?? null,
+            startedAt: now,
+            lastSeenAt: now,
+            accumulatedSeconds: 0,
+            rewardedIntervals: 0,
+            active: true,
+          });
 
-      // Si la session appartenait à un ancien compte, on repart proprement.
-      if (session.userId !== botMember.memberId) {
-        session.userId = botMember.memberId;
-        session.startedAt = now;
-        session.lastSeenAt = now;
-        session.accumulatedSeconds = 0;
-        session.rewardedIntervals = 0;
-        session.channelId = member.channelId;
-        session.active = true;
-        await economyVoiceSessionRepository.save(session);
         continue;
       }
 
       /*
-       * Le bot poll actuellement à intervalles réguliers.
-       * On ne comptabilise pas une longue coupure du bot/backend comme
-       * de la présence vocale réelle : le delta est donc plafonné à 2 minutes.
+       * Le compte Discord peut avoir été relié à un autre
+       * compte Pacte depuis la dernière session.
        */
+      if (session.userId !== userId) {
+        session.userId = userId;
+      }
+
+      /*
+       * Calcul du temps écoulé depuis le dernier tick.
+       *
+       * Le bot effectue normalement un tick toutes les 60 secondes.
+       * On limite néanmoins le delta à 2 minutes afin d'éviter
+       * qu'un arrêt prolongé du bot ne transforme une absence
+       * en plusieurs heures de présence fictive.
+       */
+      const elapsedMilliseconds =
+        now.getTime() -
+        session.lastSeenAt.getTime();
+
       const elapsedSeconds = Math.max(
         0,
         Math.min(
-          (now.getTime() - session.lastSeenAt.getTime()) / 1000,
+          Math.floor(elapsedMilliseconds / 1000),
           120
         )
       );
 
-      session.accumulatedSeconds += elapsedSeconds;
+      session.accumulatedSeconds +=
+        elapsedSeconds;
+
       session.lastSeenAt = now;
-      session.channelId = member.channelId;
+      session.channelId =
+        member.channelId ?? null;
       session.active = true;
 
-      const earnedIntervals = Math.floor(
-        session.accumulatedSeconds / intervalSeconds
+      /*
+       * Nombre total de paliers de 30 minutes atteints.
+       */
+      const totalIntervals = Math.floor(
+        session.accumulatedSeconds /
+          VOICE_INTERVAL_SECONDS
       );
 
+      /*
+       * Nombre de récompenses qu'il reste à attribuer.
+       */
+      const intervalsToReward =
+        totalIntervals -
+        session.rewardedIntervals;
+
+      if (intervalsToReward <= 0) {
+        await session.save();
+        continue;
+      }
+
+      /*
+       * Plusieurs paliers peuvent théoriquement être atteints
+       * entre deux ticks. On les traite tous.
+       */
+      let successfullyRewarded = 0;
+
       for (
-        let interval = session.rewardedIntervals + 1;
-        interval <= earnedIntervals;
-        interval += 1
+        let interval = 0;
+        interval < intervalsToReward;
+        interval++
       ) {
-        const sourceId =
-          `voice:${guildId}:${member.discordId}:${session.startedAt.getTime()}:${interval}`;
-
-        try {
-          await this.addTransaction({
-            userId: botMember.memberId,
-            currencyId: "bronze",
-            amount: rewardAmount,
-            type: "voice_reward",
-            source: "discord_voice",
-            sourceId,
-            description:
-              "Récompense de présence en vocal Discord (30 minutes)",
-          });
-        } catch (error: any) {
-          // Une transaction déjà existante signifie que cet intervalle
-          // a déjà été réservé/crédité.
-          if (error?.code === 11000) {
-            session.rewardedIntervals = interval;
-            continue;
-          }
-
-          throw error;
-        }
-
         try {
           await this.addBalance(
-            botMember.memberId,
+            userId,
             "bronze",
-            rewardAmount
+            VOICE_REWARD_BRONZE
           );
 
-          session.rewardedIntervals = interval;
-          rewardedUsers += 1;
-          bronzeGranted += rewardAmount;
+          /*
+           * Les récompenses vocales apparaissent dans
+           * l'historique économique comme transactions Discord.
+           */
+          await this.addTransaction({
+            userId,
+            currencyId: "bronze",
+            amount: VOICE_REWARD_BRONZE,
+            type: "other",
+            source: "discord_voice",
+            sourceId:
+              `${guildId}:${discordId}:${session.rewardedIntervals + 1 + successfullyRewarded}`,
+            description:
+              "Récompense de présence en vocal Discord",
+          });
+
+          successfullyRewarded++;
         } catch (error) {
-          // On libère la transaction de réservation afin de permettre
-          // une nouvelle tentative au prochain tick.
-          const transaction = await economyTransactionRepository.findBySourceId(
-            sourceId
+          console.error(
+            `Impossible d'attribuer la récompense vocale à ${discordId}:`,
+            error
           );
 
-          if (transaction?._id) {
-            await economyTransactionRepository.deleteById(
-              transaction._id.toString()
-            );
-          }
-
-          throw error;
+          break;
         }
       }
 
-      session.rewardedIntervals = Math.max(
-        session.rewardedIntervals,
-        earnedIntervals
-      );
+      if (successfullyRewarded > 0) {
+        session.rewardedIntervals +=
+          successfullyRewarded;
 
-      await economyVoiceSessionRepository.save(session);
+        rewardedUsers++;
+        bronzeGranted +=
+          successfullyRewarded *
+          VOICE_REWARD_BRONZE;
+      }
+
+      await session.save();
     }
+
+    /*
+     * Les sessions qui ne sont plus présentes dans le tick
+     * sont simplement marquées inactives.
+     *
+     * On conserve leur temps cumulé : lorsqu'un membre revient
+     * en vocal, sa session peut reprendre son compteur.
+     */
+    await EconomyVoiceSession.updateMany(
+      {
+        guildId,
+        active: true,
+        discordId: {
+          $nin: Array.from(activeDiscordIds),
+        },
+      },
+      {
+        $set: {
+          active: false,
+          channelId: null,
+        },
+      }
+    );
 
     return {
       rewardedUsers,
       bronzeGranted,
-    };
-  }
-
-  /**
-   * Résout un compte Pacte à partir de son identifiant Discord.
-   * On réutilise le même mécanisme que le bot controller pour garantir
-   * qu'un membre non lié ne reçoit jamais de monnaie.
-   */
-  private async resolveVoiceMember(
-    discordId: string
-  ): Promise<{ memberId: string } | null> {
-    const { findByDiscordId } = await import(
-      "../discord/discord.repository"
-    );
-
-    const link = await findByDiscordId(discordId);
-    if (!link) {
-      return null;
-    }
-
-    const user =
-      await this.economyRepository.findUserById(
-        link.memberId
-      );
-
-    if (!user || user.status === "DELETED") {
-      return null;
-    }
-
-    return {
-      memberId: user._id.toString(),
     };
   }
 
@@ -549,9 +555,6 @@ export class EconomyService {
       );
     }
 
-    /**
-     * Vérification d'idempotence.
-     */
     const existing =
       await this.economyRepository.findRewardTransaction(
         userId,
@@ -565,9 +568,6 @@ export class EconomyService {
       return this.getBalances(userId);
     }
 
-    /**
-     * Crédit.
-     */
     const balances =
       await this.addBalance(
         userId,
@@ -575,9 +575,6 @@ export class EconomyService {
         amount
       );
 
-    /**
-     * Historique.
-     */
     try {
       await this.addTransaction({
         userId,
@@ -589,10 +586,6 @@ export class EconomyService {
         description,
       });
     } catch (error: any) {
-      /**
-       * Si MongoDB indique que l'index unique est violé,
-       * une autre tentative a déjà enregistré cette récompense.
-       */
       if (error?.code === 11000) {
         return this.getBalances(userId);
       }

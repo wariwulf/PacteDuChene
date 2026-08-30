@@ -7,7 +7,6 @@ import {
   EconomyTransaction,
   EconomyTransactionDocument,
 } from "./economy-transaction.model";
-import { CURRENCY_IDS, type CurrencyId } from "./economy.constants";
 
 export class EconomyRepository {
   async findUserById(
@@ -16,9 +15,18 @@ export class EconomyRepository {
     return User.findById(id);
   }
 
+  async findUsersByIds(
+    ids: string[]
+  ): Promise<UserModelDocument[]> {
+    return User.find({
+      _id: { $in: ids },
+      status: { $ne: "DELETED" },
+    });
+  }
+
   async updateUserBalance(
     userId: string,
-    currencyId: CurrencyId,
+    currencyId: string,
     amount: number
   ): Promise<UserModelDocument | null> {
     return User.findByIdAndUpdate(
@@ -42,7 +50,7 @@ export class EconomyRepository {
       | "achievement_reward",
     source: string,
     sourceId: string,
-    currencyId: CurrencyId
+    currencyId: string
   ): Promise<EconomyTransactionDocument | null> {
     return EconomyTransaction.findOne({
       userId,
@@ -52,18 +60,7 @@ export class EconomyRepository {
       currencyId,
     });
   }
-
-  async findByUserId(
-    userId: string,
-    limit = 50
-  ): Promise<EconomyTransactionDocument[]> {
-    return EconomyTransaction.find({
-      userId,
-      currencyId: { $in: CURRENCY_IDS },
-    })
-      .sort({ createdAt: -1 })
-      .limit(limit);
-  }
 }
 
-export const economyRepository = new EconomyRepository();
+export const economyRepository =
+  new EconomyRepository();

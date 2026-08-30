@@ -267,6 +267,9 @@ export default function PersonnagePage() {
     useState(true);
   const [error, setError] =
     useState("");
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarSaving, setAvatarSaving] = useState(false);
+  const [avatarMessage, setAvatarMessage] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -463,6 +466,96 @@ export default function PersonnagePage() {
     load();
   }, [load]);
 
+  async function saveMyAvatar() {
+    if (!avatarFile) {
+      setError("Choisissez une image avant de l'enregistrer.");
+      return;
+    }
+
+    if (!avatarFile.type.startsWith("image/")) {
+      setError("Le fichier doit être une image.");
+      return;
+    }
+
+    if (avatarFile.size > 5 * 1024 * 1024) {
+      setError("L'image ne doit pas dépasser 5 Mo.");
+      return;
+    }
+
+    try {
+      setAvatarSaving(true);
+      setError("");
+      setAvatarMessage("");
+
+      const formData = new FormData();
+      formData.append("avatar", avatarFile);
+
+      const response = await fetch(`${API_URL}/users/avatar/me`, {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok || payload?.success === false) {
+        throw new Error(
+          payload?.message || `Erreur serveur (${response.status}).`
+        );
+      }
+
+      setAvatarFile(null);
+      setAvatarMessage("Votre portrait a été enregistré.");
+      await load();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Impossible d'enregistrer votre portrait."
+      );
+    } finally {
+      setAvatarSaving(false);
+    }
+  }
+
+  async function deleteMyAvatar() {
+    if (!member?.profile.avatar) return;
+
+    if (!window.confirm("Supprimer votre portrait personnalisé et revenir à votre avatar Discord ?")) {
+      return;
+    }
+
+    try {
+      setAvatarSaving(true);
+      setError("");
+      setAvatarMessage("");
+
+      const response = await fetch(`${API_URL}/users/avatar/me`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      const payload = await response.json().catch(() => ({}));
+
+      if (!response.ok || payload?.success === false) {
+        throw new Error(
+          payload?.message || `Erreur serveur (${response.status}).`
+        );
+      }
+
+      setAvatarMessage("Votre portrait personnalisé a été supprimé.");
+      await load();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Impossible de supprimer votre portrait."
+      );
+    } finally {
+      setAvatarSaving(false);
+    }
+  }
+
   const mainCharacter = useMemo(
     () =>
       characters.find(
@@ -590,6 +683,46 @@ export default function PersonnagePage() {
                 aria-hidden="true"
                 className="relative z-20 -mt-2 h-11 w-11 object-contain drop-shadow-[0_3px_6px_rgba(0,0,0,0.4)]"
               />
+
+              <label className="mt-3 cursor-pointer rounded-lg border border-green-700 bg-green-950/80 px-3 py-2 text-center text-xs font-semibold text-amber-300 transition hover:border-amber-500">
+                Modifier mon portrait
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  onChange={(event) =>
+                    setAvatarFile(event.target.files?.[0] ?? null)
+                  }
+                />
+              </label>
+
+              {avatarFile && (
+                <p className="mt-2 max-w-32 truncate text-center text-[11px] text-green-300">
+                  {avatarFile.name}
+                </p>
+              )}
+
+              {avatarFile && (
+                <button
+                  type="button"
+                  onClick={saveMyAvatar}
+                  disabled={avatarSaving}
+                  className="mt-2 rounded-lg bg-amber-600 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-500 disabled:opacity-50"
+                >
+                  {avatarSaving ? "Envoi..." : "Enregistrer"}
+                </button>
+              )}
+
+              {member.profile.avatar && !avatarFile && (
+                <button
+                  type="button"
+                  onClick={deleteMyAvatar}
+                  disabled={avatarSaving}
+                  className="mt-2 text-[11px] font-semibold text-green-400 hover:text-red-300 disabled:opacity-50"
+                >
+                  Supprimer mon portrait
+                </button>
+              )}
             </div>
 
             <div className="flex-1">
@@ -658,6 +791,12 @@ export default function PersonnagePage() {
             </div>
           </div>
         </section>
+
+        {avatarMessage && (
+          <div className="mb-6 rounded-xl border border-green-700 bg-green-950/60 p-4 text-sm text-green-200">
+            {avatarMessage}
+          </div>
+        )}
 
         <section className="mb-6 grid gap-6 lg:grid-cols-3">
           <section className="rounded-2xl border border-green-800 bg-green-900/50 p-6 shadow-xl">

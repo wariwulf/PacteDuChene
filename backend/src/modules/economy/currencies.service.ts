@@ -11,24 +11,28 @@ export class CurrenciesService {
     private readonly currenciesRepository = new CurrenciesRepository()
   ) {}
 
-  async getAllCurrencies() {
-    return this.currenciesRepository.findAll();
-  }
+async getAllCurrencies() {
+  await this.currenciesRepository.ensureDefaultCurrencies();
 
-  async getCurrency(currencyId: string) {
+  return this.currenciesRepository.findAll();
+}
+
+    async getCurrency(currencyId: string) {
     if (!isCurrencyId(currencyId)) {
-      throw new Error("Monnaie introuvable.");
+        throw new Error("Monnaie introuvable.");
     }
 
+    await this.currenciesRepository.ensureDefaultCurrencies();
+
     const currency =
-      await this.currenciesRepository.findById(currencyId);
+        await this.currenciesRepository.findById(currencyId);
 
     if (!currency) {
-      throw new Error("Monnaie introuvable.");
+        throw new Error("Monnaie introuvable.");
     }
 
     return currency;
-  }
+    }
 
   async createCurrency(data: {
     currencyId: string;

@@ -16,6 +16,30 @@ type Props = { questId?: string };
 type ObjectiveForm = QuestObjective;
 type StepForm = QuestStep;
 
+type AchievementOption = {
+  achievementId: string;
+  name: string;
+  linkedQuestId?: string;
+  linkedQuestName?: string;
+  enabled?: boolean;
+};
+
+type CurrencyOption = {
+  currencyId: string;
+  name: string;
+  enabled?: boolean;
+};
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
+
+function arrayFromPayload<T>(payload: any, key: string): T[] {
+  if (Array.isArray(payload?.data?.[key])) return payload.data[key];
+  if (Array.isArray(payload?.[key])) return payload[key];
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload)) return payload;
+  return [];
+}
+
 const newObjective = (stepIndex = 0, objectiveIndex = 0): ObjectiveForm => ({
   objectiveId: `etape-${stepIndex + 1}-objectif-${objectiveIndex + 1}`,
   name: "",
@@ -61,6 +85,8 @@ export default function QuestEditor({ questId }: Props) {
   const [difficulty, setDifficulty] = useState(1);
   const [prerequisites, setPrerequisites] = useState<string[]>([]);
   const [availableQuests, setAvailableQuests] = useState<QuestDefinition[]>([]);
+  const [availableAchievements, setAvailableAchievements] = useState<AchievementOption[]>([]);
+  const [availableCurrencies, setAvailableCurrencies] = useState<CurrencyOption[]>([]);
   const [steps, setSteps] = useState<StepForm[]>([newStep(0)]);
   const [rewardXp, setRewardXp] = useState(0);
   const [rewardCurrencyId, setRewardCurrencyId] = useState("");
@@ -71,8 +97,33 @@ export default function QuestEditor({ questId }: Props) {
   useEffect(() => {
     async function load() {
       try {
-        const quests = await getQuests();
+        const [quests, achievementsResponse, currenciesResponse] = await Promise.all([
+          getQuests(),
+          fetch(`${API_URL}/achievements`, {
+            credentials: "include",
+            cache: "no-store",
+          }).then(async (response) => {
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || payload?.success === false) {
+              throw new Error(payload?.message || "Impossible de récupérer les exploits.");
+            }
+            return payload;
+          }),
+          fetch(`${API_URL}/economy/currencies`, {
+            credentials: "include",
+            cache: "no-store",
+          }).then(async (response) => {
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok || payload?.success === false) {
+              throw new Error(payload?.message || "Impossible de récupérer les monnaies.");
+            }
+            return payload;
+          }),
+        ]);
+
         setAvailableQuests(quests);
+        setAvailableAchievements(arrayFromPayload<AchievementOption>(achievementsResponse, "achievements"));
+        setAvailableCurrencies(arrayFromPayload<CurrencyOption>(currenciesResponse, "currencies"));
 
         if (questId) {
           const quest = await getQuest(questId);
@@ -103,7 +154,16 @@ export default function QuestEditor({ questId }: Props) {
   }
 
   function addStep() {
-    setSteps((current) => [...current, newStep(current.length)]);
+    setSteps((current) => {
+      const used = new Set(current.map((step) => step.stepId));
+      let index = current.length;
+      let candidate = `etape-${index + 1}`;
+      while (used.has(candidate)) {
+        index += 1;
+        candidate = `etape-${index + 1}`;
+      }
+      return [...current, newStep(index)];
+    });
   }
 
   function removeStep(index: number) {
@@ -128,9 +188,21 @@ export default function QuestEditor({ questId }: Props) {
   }
 
   function addObjective(stepIndex: number) {
-    setSteps((current) => current.map((step, si) => si !== stepIndex ? step : {
-      ...step,
-      objectives: [...step.objectives, newObjective(stepIndex, step.objectives.length)],
+    setSteps((current) => current.map((step, si) => {
+      if (si !== stepIndex) return step;
+
+      const used = new Set(step.objectives.map((objective) => objective.objectiveId));
+      let index = step.objectives.length;
+      let candidate = `etape-${stepIndex + 1}-objectif-${index + 1}`;
+      while (used.has(candidate)) {
+        index += 1;
+        candidate = `etape-${stepIndex + 1}-objectif-${index + 1}`;
+      }
+
+      return {
+        ...step,
+        objectives: [...step.objectives, newObjective(stepIndex, index)],
+      };
     }));
   }
 
@@ -157,9 +229,32 @@ export default function QuestEditor({ questId }: Props) {
     event.preventDefault();
     setError("");
 
-    if (!questIdValue.trim() || !name.trim()) {
-      setError("L'identifiant et le nom de la quête sont obligatoires.");
+    if (!name.trim()) {
+      setError("Le nom de la quête est obligatoire.");
       return;
+    }
+
+    const slugify = (value: string) =>
+      value
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+
+    const baseQuestId = editing && questIdValue.trim()
+      ? questIdValue.trim()
+      : slugify(name) || "quete";
+
+    let finalQuestId = baseQuestId;
+    if (!editing) {
+      const usedQuestIds = new Set(availableQuests.map((item) => item.questId));
+      let suffix = 2;
+      while (usedQuestIds.has(finalQuestId)) {
+        finalQuestId = `${baseQuestId}-${suffix}`;
+        suffix += 1;
+      }
     }
     if (!Number.isInteger(difficulty) || difficulty < 1 || difficulty > 5) {
       setError("La difficulté de la quête doit être comprise entre 1 et 5.");
@@ -173,7 +268,7 @@ export default function QuestEditor({ questId }: Props) {
     const objectiveIds = new Set<string>();
     for (const [stepIndex, step] of steps.entries()) {
       if (!step.stepId.trim() || !step.name.trim()) {
-        setError(`L'étape ${stepIndex + 1} doit posséder un identifiant et un nom.`);
+        setError(`L'étape ${stepIndex + 1} doit posséder un nom.`);
         return;
       }
       if (step.difficulty < 1 || step.difficulty > 5) {
@@ -186,7 +281,7 @@ export default function QuestEditor({ questId }: Props) {
       }
       for (const objective of step.objectives) {
         if (!objective.objectiveId.trim() || !objective.name.trim()) {
-          setError("Chaque objectif doit posséder un identifiant et un nom.");
+          setError("Chaque objectif doit posséder un nom.");
           return;
         }
         if (objectiveIds.has(objective.objectiveId.trim())) {
@@ -222,7 +317,7 @@ export default function QuestEditor({ questId }: Props) {
     try {
       setSaving(true);
       const payload = {
-        questId: questIdValue.trim(),
+        questId: finalQuestId,
         name: name.trim(),
         description: description.trim() || undefined,
         imageUrl: imageUrl.trim() || undefined,
@@ -269,11 +364,7 @@ export default function QuestEditor({ questId }: Props) {
           <section className="rounded-2xl border border-white/10 bg-black/20 p-6">
             <h2 className="mb-6 text-2xl font-bold">Présentation de la quête</h2>
             <div className="grid gap-5 md:grid-cols-2">
-              <label className="block">
-                <span className="mb-2 block text-sm font-semibold">Identifiant</span>
-                <input value={questIdValue} disabled={editing} onChange={(e) => setQuestIdValue(e.target.value)} className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500 disabled:text-gray-500" placeholder="chasse-au-sanglier" />
-              </label>
-              <label className="block">
+              <label className="block md:col-span-2">
                 <span className="mb-2 block text-sm font-semibold">Nom</span>
                 <input value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500" placeholder="La chasse au sanglier" />
               </label>
@@ -329,8 +420,7 @@ export default function QuestEditor({ questId }: Props) {
                   </div>
 
                   <div className="grid gap-5 md:grid-cols-2">
-                    <label><span className="mb-2 block text-sm font-semibold">Identifiant</span><input value={step.stepId} onChange={(e) => updateStep(stepIndex, "stepId", e.target.value)} className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500" /></label>
-                    <label><span className="mb-2 block text-sm font-semibold">Titre</span><input value={step.name} onChange={(e) => updateStep(stepIndex, "name", e.target.value)} className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500" /></label>
+                    <label className="md:col-span-2"><span className="mb-2 block text-sm font-semibold">Titre</span><input value={step.name} onChange={(e) => updateStep(stepIndex, "name", e.target.value)} className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500" /></label>
                     <label className="md:col-span-2"><span className="mb-2 block text-sm font-semibold">Image de l'étape</span><input value={step.imageUrl ?? ""} onChange={(e) => updateStep(stepIndex, "imageUrl", e.target.value)} className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500" placeholder="/images/quetes/etape.jpg ou URL complète" /></label>
                     <label><span className="mb-2 block text-sm font-semibold">Difficulté</span><div className="rounded-lg border border-white/10 bg-black/20 px-4 py-3"><QuestDifficulty value={step.difficulty} /><input type="range" min={1} max={5} value={step.difficulty} onChange={(e) => updateStep(stepIndex, "difficulty", Number(e.target.value))} className="mt-3 w-full accent-amber-500" /></div></label>
                     <label className="md:col-span-2"><span className="mb-2 block text-sm font-semibold">Description de l'étape</span><textarea value={step.description ?? ""} onChange={(e) => updateStep(stepIndex, "description", e.target.value)} rows={3} className="w-full resize-y rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500" /></label>
@@ -345,11 +435,10 @@ export default function QuestEditor({ questId }: Props) {
                         <div key={`${objective.objectiveId}-${objectiveIndex}`} className="rounded-xl border border-white/10 bg-black/10 p-4">
                           <div className="mb-4 flex justify-between"><strong className="text-amber-400">Objectif {objectiveIndex + 1}</strong>{step.objectives.length > 1 && <button type="button" onClick={() => removeObjective(stepIndex, objectiveIndex)} className="text-sm text-red-400">Supprimer</button>}</div>
                           <div className="grid gap-4 md:grid-cols-2">
-                            <label><span className="mb-1 block text-xs font-semibold text-gray-400">Identifiant</span><input value={objective.objectiveId} onChange={(e) => updateObjective(stepIndex, objectiveIndex, "objectiveId", e.target.value)} className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-amber-500" /></label>
                             <label><span className="mb-1 block text-xs font-semibold text-gray-400">Nom</span><input value={objective.name} onChange={(e) => updateObjective(stepIndex, objectiveIndex, "name", e.target.value)} className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-amber-500" /></label>
                             <label><span className="mb-1 block text-xs font-semibold text-gray-400">Cible</span><input type="number" min={1} value={objective.target} onChange={(e) => updateObjective(stepIndex, objectiveIndex, "target", Number(e.target.value))} className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-amber-500" /></label>
                             <label><span className="mb-1 block text-xs font-semibold text-gray-400">Type d'événement</span><input value={objective.eventType ?? ""} onChange={(e) => updateObjective(stepIndex, objectiveIndex, "eventType", e.target.value)} placeholder="ex: hunt" className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-amber-500" /></label>
-                            <label><span className="mb-1 block text-xs font-semibold text-gray-400">Cible d'événement</span><input value={objective.eventTargetId ?? ""} onChange={(e) => updateObjective(stepIndex, objectiveIndex, "eventTargetId", e.target.value)} placeholder="ID de la cible" className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-amber-500" /></label>
+                            <label><span className="mb-1 block text-xs font-semibold text-gray-400">Cible d’événement <span className="font-normal text-gray-500">(optionnel)</span></span><input value={objective.eventTargetId ?? ""} onChange={(e) => updateObjective(stepIndex, objectiveIndex, "eventTargetId", e.target.value)} placeholder="ID de la cible si nécessaire" className="w-full rounded-lg border border-white/10 bg-black/20 px-3 py-2.5 outline-none focus:border-amber-500" /></label>
                             <label className="md:col-span-2 flex cursor-pointer items-center gap-3 rounded-lg border border-white/10 bg-black/20 px-3 py-3">
                               <input
                                 type="checkbox"
@@ -380,8 +469,44 @@ export default function QuestEditor({ questId }: Props) {
             <div className="grid gap-5 md:grid-cols-2">
               <label><span className="mb-2 block text-sm font-semibold">XP</span><input type="number" min={0} value={rewardXp} onChange={(e) => setRewardXp(Number(e.target.value))} className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3" /></label>
               <label><span className="mb-2 block text-sm font-semibold">Quantité de monnaie</span><input type="number" min={0} value={rewardAmount} onChange={(e) => setRewardAmount(Number(e.target.value))} className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3" /></label>
-              <label><span className="mb-2 block text-sm font-semibold">Identifiant de la monnaie</span><input value={rewardCurrencyId} onChange={(e) => setRewardCurrencyId(e.target.value)} placeholder="solidus" className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3" /></label>
-              <label><span className="mb-2 block text-sm font-semibold">Identifiant de l'exploit attribué à la fin de la quête</span><input value={rewardAchievementId} onChange={(e) => setRewardAchievementId(e.target.value)} placeholder="chasseur-du-pacte" className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3" /></label>
+              <label>
+                <span className="mb-2 block text-sm font-semibold">Monnaie</span>
+                <select
+                  value={rewardCurrencyId}
+                  onChange={(e) => setRewardCurrencyId(e.target.value)}
+                  className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500"
+                >
+                  <option value="">Aucune monnaie</option>
+                  {availableCurrencies.map((currency) => (
+                    <option key={currency.currencyId} value={currency.currencyId}>
+                      {currency.name} ({currency.currencyId})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span className="mb-2 block text-sm font-semibold">Exploit attribué à la fin de la quête</span>
+                <select
+                  value={rewardAchievementId}
+                  onChange={(e) => setRewardAchievementId(e.target.value)}
+                  className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500"
+                >
+                  <option value="">Aucun exploit</option>
+                  {availableAchievements
+                    .filter((achievement) =>
+                      !achievement.linkedQuestId ||
+                      achievement.linkedQuestId === questIdValue
+                    )
+                    .map((achievement) => (
+                      <option key={achievement.achievementId} value={achievement.achievementId}>
+                        {achievement.name} ({achievement.achievementId})
+                      </option>
+                    ))}
+                </select>
+                <span className="mt-1 block text-xs text-gray-500">
+                  Les exploits déjà liés à une autre quête ne sont pas proposés.
+                </span>
+              </label>
             </div>
           </section>
 

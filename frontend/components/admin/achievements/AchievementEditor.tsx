@@ -14,6 +14,19 @@ interface Props {
   achievementId?: string;
 }
 
+function generateAchievementId(title: string): string {
+  const slug = title
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  const suffix = Date.now().toString(36).slice(-6);
+  return `${slug || "exploit"}-${suffix}`;
+}
+
 export default function AchievementEditor({ achievementId }: Props) {
   const router = useRouter();
   const editing = Boolean(achievementId);
@@ -52,8 +65,8 @@ export default function AchievementEditor({ achievementId }: Props) {
     event.preventDefault();
     setError("");
 
-    if (!id.trim() || !name.trim()) {
-      setError("L'identifiant et le titre sont obligatoires.");
+    if (!name.trim()) {
+      setError("Le titre de l'exploit est obligatoire.");
       return;
     }
 
@@ -70,8 +83,10 @@ export default function AchievementEditor({ achievementId }: Props) {
           enabled,
         });
       } else {
+        const generatedAchievementId = generateAchievementId(name);
+
         await createAchievement({
-          achievementId: id.trim(),
+          achievementId: generatedAchievementId,
           name: name.trim(),
           description: description.trim() || undefined,
           level,
@@ -106,20 +121,21 @@ export default function AchievementEditor({ achievementId }: Props) {
 
       <section className="rounded-xl border border-white/10 bg-black/10 p-6">
         <h2 className="text-xl font-bold">Identité de l&apos;exploit</h2>
-        <div className="mt-5 grid gap-5 md:grid-cols-2">
-          <label>
-            <span className="mb-2 block text-sm font-semibold">Identifiant</span>
-            <input value={id} onChange={(e) => setId(e.target.value)} disabled={editing} placeholder="chasseur-sanglier-1" className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 disabled:opacity-50" />
-          </label>
+        <div className="mt-5 grid gap-5">
           <label>
             <span className="mb-2 block text-sm font-semibold">Titre</span>
             <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Chasseur du Pacte" className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3" />
           </label>
-          <label className="md:col-span-2">
+          <label>
             <span className="mb-2 block text-sm font-semibold">Description de la tâche à accomplir</span>
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={5} maxLength={5000} placeholder="Décrivez précisément ce que le membre doit accomplir..." className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3" />
           </label>
         </div>
+        {!editing && (
+          <p className="mt-3 text-xs text-gray-500">
+            L&apos;identifiant technique de l&apos;exploit sera généré automatiquement lors de sa création.
+          </p>
+        )}
       </section>
 
       <section className="rounded-xl border border-white/10 bg-black/10 p-6">

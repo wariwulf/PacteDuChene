@@ -20,15 +20,17 @@ export const clanService = {
 
     for (const entry of entries) {
       const user = usersById.get(String(entry.memberId));
-
       if (!user) continue;
 
+      // Le portrait du profil est prioritaire.
+      // L'ancien portrait ClanMember reste un fallback de compatibilité
+      // pour les membres dont le portrait Discord avait déjà été enregistré.
       result.push({
         id: String(entry._id),
         memberId: entry.memberId,
         role: entry.role,
         parentId: entry.parentId,
-        portrait: entry.portrait ?? user.profile?.avatar ?? null,
+        portrait: user.profile?.avatar ?? entry.portrait ?? null,
         displayOrder: entry.displayOrder,
         active: entry.active,
         name:
@@ -39,15 +41,12 @@ export const clanService = {
       });
     }
 
-    // Migration de sécurité : les comptes existants qui n'ont pas encore
-    // d'entrée ClanMember apparaissent comme INITIE.
     const knownMemberIds = new Set(
       clanMemberIds.map((entry) => String(entry.memberId))
     );
 
     for (const user of users) {
       const memberId = String(user._id);
-
       if (knownMemberIds.has(memberId)) continue;
 
       result.push({

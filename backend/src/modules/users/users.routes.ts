@@ -11,6 +11,8 @@ import {
   archiveAdminMember,
   restoreAdminMember,
   uploadAvatar,
+  uploadMyAvatar,
+  deleteMyAvatar,
 } from "./users.controller";
 
 import { requireAuth } from "../../middleware/auth.middleware";
@@ -55,6 +57,20 @@ router.post(
   ...adminAccess,
   avatarUpload.single("avatar"),
   uploadAvatar
+);
+
+// Portrait personnel du membre connecté.
+router.post(
+  "/avatar/me",
+  requireAuth,
+  avatarUpload.single("avatar"),
+  uploadMyAvatar
+);
+
+router.delete(
+  "/avatar/me",
+  requireAuth,
+  deleteMyAvatar
 );
 
 router.post(
