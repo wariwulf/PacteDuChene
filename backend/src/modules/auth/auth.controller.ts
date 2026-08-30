@@ -39,17 +39,31 @@ export class AuthController {
   }
 
   private frontendUrl(pathname: string, oauthError?: string) {
-    const frontendUrl = process.env.FRONTEND_URL?.trim() || "http://localhost:3000";
+    const frontendUrl =
+      process.env.FRONTEND_URL?.trim() || "http://localhost:3000";
+
     const url = new URL(pathname, frontendUrl);
-    if (oauthError) url.searchParams.set("oauthError", oauthError);
+
+    if (oauthError) {
+      url.searchParams.set("oauthError", oauthError);
+    }
+
     return url.toString();
   }
 
   async startDiscordOAuth(_req: Request, res: Response) {
     try {
       const state = discordOAuthService.createState();
-      res.cookie(OAUTH_STATE_COOKIE, state, this.oauthStateCookieOptions());
-      return res.redirect(discordOAuthService.getAuthorizationUrl(state));
+
+      res.cookie(
+        OAUTH_STATE_COOKIE,
+        state,
+        this.oauthStateCookieOptions()
+      );
+
+      return res.redirect(
+        discordOAuthService.getAuthorizationUrl(state)
+      );
     } catch {
       return res.redirect(this.frontendUrl("/connexion", "failed"));
     }
@@ -58,9 +72,13 @@ export class AuthController {
   async discordOAuthCallback(req: Request, res: Response) {
     const expectedState = req.cookies?.[OAUTH_STATE_COOKIE];
     const code = typeof req.query.code === "string" ? req.query.code : "";
-    const receivedState = typeof req.query.state === "string" ? req.query.state : "";
+    const receivedState =
+      typeof req.query.state === "string" ? req.query.state : "";
 
-    res.clearCookie(OAUTH_STATE_COOKIE, this.oauthStateClearCookieOptions());
+    res.clearCookie(
+      OAUTH_STATE_COOKIE,
+      this.oauthStateClearCookieOptions()
+    );
 
     if (
       typeof expectedState !== "string" ||
@@ -72,26 +90,52 @@ export class AuthController {
     }
 
     try {
-      const discordUser = await discordOAuthService.getDiscordUserFromCode(code);
-      const user = await discordOAuthService.getActiveUserFromDiscordId(discordUser.id);
+      const discordUser =
+        await discordOAuthService.getDiscordUserFromCode(code);
+
+      const user =
+        await discordOAuthService.getActiveUserFromDiscordId(
+          discordUser.id
+        );
+
+      // Synchronisation des droits Discord AVANT la création de la session.
+      // Ainsi la session créée contient immédiatement le nouveau rôle.
+      await discordOAuthService.syncSiteRole(user, discordUser.id);
+
       const result = await authService.createSessionForUser(user);
 
-      res.cookie("pacte_session", result.sessionToken, this.sessionCookieOptions(result.expiresAt));
+      res.cookie(
+        "pacte_session",
+        result.sessionToken,
+        this.sessionCookieOptions(result.expiresAt)
+      );
+
       return res.redirect(this.frontendUrl("/espace-membre"));
     } catch (error) {
-      const oauthError = error instanceof DiscordOAuthError ? error.code : "failed";
-      return res.redirect(this.frontendUrl("/connexion", oauthError));
+      const oauthError =
+        error instanceof DiscordOAuthError ? error.code : "failed";
+
+      return res.redirect(
+        this.frontendUrl("/connexion", oauthError)
+      );
     }
   }
 
   async register(req: Request, res: Response) {
     try {
       const user = await authService.register(req.body);
-      return res.status(201).json({ success: true, data: { user } });
+
+      return res.status(201).json({
+        success: true,
+        data: { user },
+      });
     } catch (error) {
       return res.status(400).json({
         success: false,
-        message: error instanceof Error ? error.message : "Impossible de créer le compte.",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Impossible de créer le compte.",
       });
     }
   }
@@ -99,25 +143,42 @@ export class AuthController {
   async login(req: Request, res: Response) {
     try {
       const result = await authService.login(req.body);
-      res.cookie("pacte_session", result.sessionToken, this.sessionCookieOptions(result.expiresAt));
 
-      return res.json({ success: true, data: { user: result.user } });
+      res.cookie(
+        "pacte_session",
+        result.sessionToken,
+        this.sessionCookieOptions(result.expiresAt)
+      );
+
+      return res.json({
+        success: true,
+        data: { user: result.user },
+      });
     } catch (error) {
       return res.status(401).json({
         success: false,
-        message: error instanceof Error ? error.message : "Connexion impossible.",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Connexion impossible.",
       });
     }
   }
 
   async me(req: Request, res: Response) {
-    return res.json({ success: true, data: { user: (req as any).user } });
+    return res.json({
+      success: true,
+      data: { user: (req as any).user },
+    });
   }
 
   async logout(req: Request, res: Response) {
     try {
       const sessionToken = req.cookies?.pacte_session;
-      if (sessionToken) await authService.logout(sessionToken);
+
+      if (sessionToken) {
+        await authService.logout(sessionToken);
+      }
 
       res.clearCookie("pacte_session", {
         httpOnly: true,
@@ -126,9 +187,15 @@ export class AuthController {
         path: "/",
       });
 
-      return res.json({ success: true, message: "Déconnexion réussie." });
-    } catch (error) {
-      return res.status(500).json({ success: false, message: "Impossible de se déconnecter." });
+      return res.json({
+        success: true,
+        message: "Déconnexion réussie.",
+      });
+    } catch {
+      return res.status(500).json({
+        success: false,
+        message: "Impossible de se déconnecter.",
+      });
     }
   }
 }

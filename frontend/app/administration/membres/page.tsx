@@ -6,6 +6,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { useRouter } from "next/navigation";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -140,6 +141,9 @@ function statusClass(status: Status) {
 
 export default function AdministrationMembresPage() {
   const [members, setMembers] = useState<Member[]>([]);
+  const [currentUserRole, setCurrentUserRole] = useState<Role | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -168,6 +172,27 @@ export default function AdministrationMembresPage() {
     discordUsername: "",
   });
 
+  async function loadCurrentUser() {
+    try {
+      setAuthLoading(true);
+
+      const payload = await apiRequest("/auth/me");
+      const role = payload?.data?.user?.role as Role | undefined;
+
+      if (role !== "OWNER" && role !== "ADMIN") {
+        router.replace("/espace-membre");
+        return;
+      }
+
+      setCurrentUserRole(role);
+    } catch (err) {
+      setCurrentUserRole(null);
+      router.replace("/espace-membre");
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
   async function loadMembers() {
     try {
       setLoading(true);
@@ -190,8 +215,14 @@ export default function AdministrationMembresPage() {
   }
 
   useEffect(() => {
-    loadMembers();
+    void loadCurrentUser();
   }, []);
+
+  useEffect(() => {
+    if (currentUserRole === "OWNER" || currentUserRole === "ADMIN") {
+      void loadMembers();
+    }
+  }, [currentUserRole]);
 
   const filteredMembers = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -216,6 +247,30 @@ export default function AdministrationMembresPage() {
         )
     );
   }, [members, search]);
+
+  const isOwner = currentUserRole === "OWNER";
+  const isAdmin = currentUserRole === "ADMIN";
+
+  function canEditRole(member?: Member | null) {
+    if (!currentUserRole) return false;
+    if (isOwner) return true;
+
+    // ADMIN peut uniquement attribuer/révoquer MODERATOR.
+    // Les rôles ADMIN et OWNER sont donc verrouillés.
+    return !!member && member.role !== "ADMIN" && member.role !== "OWNER";
+  }
+
+  function allowedRoleOptions(member?: Member | null) {
+    if (isOwner) {
+      return ["PLAYER", "MODERATOR", "ADMIN", "OWNER"] as Role[];
+    }
+
+    if (isAdmin) {
+      return ["PLAYER", "MODERATOR"] as Role[];
+    }
+
+    return ["PLAYER"] as Role[];
+  }
 
   function resetForm() {
     setSelected(null);
@@ -342,6 +397,18 @@ export default function AdministrationMembresPage() {
     setTemporaryPassword("");
 
     try {
+      if (selected && form.role !== selected.role && !canEditRole(selected)) {
+        throw new Error(
+          "Un administrateur ne peut modifier que les rôles des membres et modérateurs. Seul le propriétaire peut gérer les administrateurs et le propriétaire."
+        );
+      }
+
+      if (!selected && form.role !== "PLAYER" && form.role !== "MODERATOR" && !isOwner) {
+        throw new Error(
+          "Un administrateur peut uniquement créer un membre ou un modérateur."
+        );
+      }
+
       if (selected) {
         let avatar = form.avatar;
 
@@ -585,6 +652,18 @@ export default function AdministrationMembresPage() {
     }
   }
 
+  if (authLoading || !currentUserRole) {
+    return (
+      <main className="min-h-screen bg-green-950 px-6 py-10 text-white">
+        <div className="mx-auto max-w-7xl">
+          <div className="rounded-2xl border border-green-800 bg-green-900/60 p-8 text-center">
+            <p className="text-green-200">Vérification des droits d'administration...</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-green-950 px-6 py-10 text-white">
       <div className="mx-auto max-w-7xl">
@@ -739,28 +818,33 @@ export default function AdministrationMembresPage() {
 
               <select
                 value={form.role}
+                disabled={!!selected && !canEditRole(selected)}
                 onChange={(event) =>
                   setForm({
                     ...form,
-                    role:
-                      event.target.value as Role,
+                    role: event.target.value as Role,
                   })
                 }
-                className="w-full rounded-lg border border-green-700 bg-green-950 px-4 py-3 outline-none focus:border-amber-500"
+                className="w-full rounded-lg border border-green-700 bg-green-950 px-4 py-3 outline-none focus:border-amber-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                <option value="PLAYER">
-                  Membre
-                </option>
-                <option value="MODERATOR">
-                  Modérateur
-                </option>
-                <option value="ADMIN">
-                  Administrateur
-                </option>
-                <option value="OWNER">
-                  Propriétaire
-                </option>
+                {allowedRoleOptions(selected).map((role) => (
+                  <option key={role} value={role}>
+                    {roleLabel(role)}
+                  </option>
+                ))}
               </select>
+
+              {isAdmin && selected && !canEditRole(selected) && (
+                <p className="mt-2 text-xs text-amber-300">
+                  Seul le propriétaire peut modifier les rôles Administrateur et Propriétaire.
+                </p>
+              )}
+
+              {isAdmin && !selected && (
+                <p className="mt-2 text-xs text-green-300">
+                  En tant qu'administrateur, vous pouvez créer des membres ou des modérateurs.
+                </p>
+              )}
             </label>
 
             <label className="block md:col-span-2">
