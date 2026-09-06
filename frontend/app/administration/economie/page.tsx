@@ -7,6 +7,9 @@ import {
   type FormEvent,
 } from "react";
 
+import { useAuth } from "@/contexts/AuthContext";
+import { hasPermission, SITE_PERMISSIONS } from "@/lib/permissions";
+
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   "http://localhost:5000/api";
@@ -118,6 +121,12 @@ export default function EconomyAdministrationPage() {
   const [amount, setAmount] = useState("1");
   const [reason, setReason] = useState("");
 
+  const { user } = useAuth();
+  const canManageExchangeRates = hasPermission(
+    user,
+    SITE_PERMISSIONS.ECONOMY_EXCHANGE_RATES_MANAGE
+  );
+
   const [argentPerSolidus, setArgentPerSolidus] =
     useState("100");
   const [bronzePerArgent, setBronzePerArgent] =
@@ -142,7 +151,7 @@ export default function EconomyAdministrationPage() {
       ] = await Promise.all([
         apiRequest<{
           data: Member[];
-        }>("/users/admin"),
+        }>("/economy/admin/members"),
         apiRequest<{
           data: { currencies: Currency[] };
         }>("/economy/currencies"),
@@ -734,6 +743,7 @@ export default function EconomyAdministrationPage() {
           </section>
 
           <div className="space-y-8">
+            {canManageExchangeRates && (
             <section className="rounded-2xl border border-green-800 bg-green-900/60 p-6">
               <div className="mb-5">
                 <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-400">
@@ -840,6 +850,8 @@ export default function EconomyAdministrationPage() {
                 </button>
               </form>
             </section>
+
+            )}
 
             <section className="rounded-2xl border border-green-800 bg-green-900/60 p-6">
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-400">

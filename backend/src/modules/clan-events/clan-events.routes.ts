@@ -1,6 +1,7 @@
 import { Router, type NextFunction, type Response } from "express";
 import { clanEventUpload } from "./clan-events.upload";
 import { requireAuth, type AuthenticatedRequest } from "../../middleware/auth.middleware";
+import { requireRole } from "../../middleware/role.middleware";
 import {
   listUpcoming, getEvent, setParticipation, removeParticipation,
   listAdmin, createAdmin, updateAdmin, syncDiscord, deleteAdmin,
@@ -12,9 +13,15 @@ const router = Router();
 
 function requireEventManager(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   const role = String(req.user?.role ?? "").toUpperCase();
-  const permissions = Array.isArray(req.user?.permissions) ? req.user.permissions : [];
-  if (["OWNER", "ADMIN", "MODERATOR"].includes(role) || req.user?.isFactionLeader === true || permissions.includes("events.manage")) return next();
-  return res.status(403).json({ success:false, message:"Vous n'avez pas la permission de gérer les événements." });
+
+  if (role === "OWNER" || role === "ADMIN") {
+    return next();
+  }
+
+  return res.status(403).json({
+    success: false,
+    message: "Vous n'avez pas la permission de gérer les événements.",
+  });
 }
 
 function requireBot(req: any, res: Response, next: NextFunction) {

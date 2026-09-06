@@ -10,6 +10,7 @@ import {
 } from "./discord.controller";
 
 import { requireAuth } from "../../middleware/auth.middleware";
+import { requireRole } from "../../middleware/role.middleware";
 
 const router = Router();
 

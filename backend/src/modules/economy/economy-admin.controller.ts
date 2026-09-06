@@ -10,6 +10,34 @@ function actorId(req: AuthenticatedRequest) {
   return req.user.id;
 }
 
+export async function listMembersForAdjustment(
+  _req: AuthenticatedRequest,
+  res: Response
+) {
+  try {
+    const members =
+      await economyAdminService.listMembersForAdjustment();
+
+    return res.status(200).json({
+      success: true,
+      data: members,
+    });
+  } catch (error) {
+    console.error(
+      "Erreur récupération membres pour l'économie :",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Impossible de charger les membres.",
+    });
+  }
+}
+
 export async function getExchangeRates(
   _req: AuthenticatedRequest,
   res: Response

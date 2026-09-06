@@ -24,6 +24,14 @@ export class EconomyRepository {
     });
   }
 
+  async findUsersForEconomyAdmin(): Promise<UserModelDocument[]> {
+    return User.find({
+      status: { $ne: "DELETED" },
+    })
+      .select("profile.username profile.displayName profile.avatar discord.username economy.balances")
+      .sort({ "profile.username": 1 });
+  }
+
   async updateUserBalance(
     userId: string,
     currencyId: string,

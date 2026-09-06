@@ -211,7 +211,7 @@ export async function updateLevel(
         level: LevelDefinition;
       };
     }>(`/levels/${level}`, {
-      method: "PUT",
+      method: "PATCH",
       body: JSON.stringify(data),
     });
 

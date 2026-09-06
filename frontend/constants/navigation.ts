@@ -1,9 +1,15 @@
+import type { SitePermission } from "@/lib/permissions";
+
 export type NavigationAccess = "public" | "member" | "admin";
 
 export interface NavigationItem {
   label: string;
   href: string;
   access: NavigationAccess;
+  /** Permission fonctionnelle requise pour une entrée d’administration. */
+  permission?: SitePermission;
+  /** Entrée réservée aux rôles ADMIN / OWNER. */
+  adminOnly?: boolean;
 }
 
 export const navigation: NavigationItem[] = [
@@ -69,56 +75,67 @@ export const administrationNavigation: NavigationItem[] = [
     label: "Membres",
     href: "/administration/membres",
     access: "admin",
+    adminOnly: true,
   },
   {
     label: "Quêtes",
     href: "/administration/quetes",
     access: "admin",
+    permission: "quests.manage",
   },
   {
     label: "Exploits",
     href: "/administration/exploits",
     access: "admin",
+    permission: "achievements.manage",
   },
   {
     label: "Niveaux",
     href: "/administration/niveaux",
     access: "admin",
+    adminOnly: true,
   },
   {
     label: "Économie",
     href: "/administration/economie",
     access: "admin",
+    permission: "economy.adjust",
   },
   {
     label: "Inventaire",
     href: "/administration/inventaire",
     access: "admin",
+    adminOnly: true,
   },
   {
     label: "Lore",
     href: "/administration/lore",
     access: "admin",
+    adminOnly: true,
   },
   {
     label: "Actualités",
     href: "/administration/news",
     access: "admin",
+    permission: "news.manage",
   },
   {
     label: "Boutiques",
     href: "/administration/boutiques",
     access: "admin",
+    adminOnly: true,
   },
   {
     label: "Discord",
     href: "/administration/discord",
     access: "admin",
+    adminOnly: true,
   },
   {
     label: "Événements",
     href: "/administration/evenements",
     access: "admin",
+    adminOnly: true,
   },
 ];
 

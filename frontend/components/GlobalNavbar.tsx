@@ -9,11 +9,12 @@ import {
   type NavigationItem,
 } from "@/constants/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { hasPermission } from "@/lib/permissions";
 
 function isAdminRole(role?: string) {
   const normalizedRole = String(role ?? "").toUpperCase();
 
-  return ["ADMIN", "ADMINISTRATOR", "OWNER", "MODERATOR"].includes(normalizedRole);
+  return ["ADMIN", "ADMINISTRATOR", "OWNER"].includes(normalizedRole);
 }
 
 function canAccess(item: NavigationItem, authenticated: boolean, admin: boolean) {
@@ -24,6 +25,21 @@ function canAccess(item: NavigationItem, authenticated: boolean, admin: boolean)
   return false;
 }
 
+function canAccessAdministrationItem(
+  item: NavigationItem,
+  user: { role?: string; permissions?: string[] } | null
+) {
+  if (!user) return false;
+
+  if (isAdminRole(user.role)) return true;
+
+  if (item.adminOnly) return false;
+
+  return item.permission
+    ? hasPermission(user, item.permission)
+    : false;
+}
+
 export default function GlobalNavbar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -32,7 +48,11 @@ export default function GlobalNavbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [adminOpen, setAdminOpen] = useState(false);
 
-  const admin = isAdminRole(user?.role) || Boolean((user as any)?.isFactionLeader) || Boolean((user as any)?.permissions?.includes("events.manage"));
+  const visibleAdministrationNavigation = administrationNavigation.filter((item) =>
+    canAccessAdministrationItem(item, user)
+  );
+
+  const admin = visibleAdministrationNavigation.length > 0;
 
   const visibleNavigation = navigation.filter((item) =>
     canAccess(item, isAuthenticated, admin)
@@ -100,7 +120,7 @@ export default function GlobalNavbar() {
 
               {adminOpen && (
                 <div className="absolute right-0 top-full mt-2 w-56 rounded-lg border border-green-800 bg-[#0b1711] p-2 shadow-2xl">
-                  {administrationNavigation.map((item) => (
+                  {visibleAdministrationNavigation.map((item) => (
                     <Link
                       key={item.href}
                       href={item.href}
@@ -185,7 +205,7 @@ export default function GlobalNavbar() {
                   Administration
                 </p>
 
-                {administrationNavigation.map((item) => (
+                {visibleAdministrationNavigation.map((item) => (
                   <Link
                     key={item.href}
                     href={item.href}

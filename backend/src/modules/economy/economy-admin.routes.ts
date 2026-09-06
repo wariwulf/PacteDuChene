@@ -3,6 +3,7 @@ import { requireAuth } from "../../middleware/auth.middleware";
 import { requireRole, requirePermission } from "../../middleware/role.middleware";
 import {
   adjustMembers,
+  listMembersForAdjustment,
   getExchangeRates,
   updateExchangeRates,
 } from "./economy-admin.controller";
@@ -12,6 +13,14 @@ const router = Router();
 
 // Toute l'administration économique nécessite une authentification.
 router.use(requireAuth);
+
+// Les membres nécessaires aux opérations économiques sont accessibles
+// uniquement aux utilisateurs disposant de la permission d'ajustement.
+router.get(
+  "/members",
+  requirePermission(SITE_PERMISSIONS.ECONOMY_ADJUST),
+  listMembersForAdjustment
+);
 
 // Les taux de change restent strictement réservés à ADMIN / OWNER.
 router.get(

@@ -28,6 +28,25 @@ function readBalance(
 }
 
 export class EconomyAdminService {
+  async listMembersForAdjustment() {
+    const users = await economyRepository.findUsersForEconomyAdmin();
+
+    return users.map((user) => ({
+      id: user._id.toString(),
+      profile: {
+        username: user.profile?.username,
+        displayName: user.profile?.displayName,
+        avatar: user.profile?.avatar,
+      },
+      discord: {
+        username: user.discord?.username,
+      },
+      economy: {
+        balances: user.economy?.balances ?? {},
+      },
+    }));
+  }
+
   async getExchangeRates() {
     const settings =
       await economyExchangeRepository.ensureDefaults();
