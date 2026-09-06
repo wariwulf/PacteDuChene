@@ -37,7 +37,7 @@ export class EconomyRepository {
         },
       },
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }
     );
@@ -47,7 +47,8 @@ export class EconomyRepository {
     userId: string,
     type:
       | "quest_reward"
-      | "achievement_reward",
+      | "achievement_reward"
+      | "event_reward",
     source: string,
     sourceId: string,
     currencyId: string

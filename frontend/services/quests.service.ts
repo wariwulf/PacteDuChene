@@ -32,6 +32,46 @@ export async function getQuests(): Promise<QuestDefinition[]> {
   return response.data.quests;
 }
 
+
+/**
+ * Récupère les quêtes supprimées (administration).
+ */
+export async function getDeletedQuests(): Promise<QuestDefinition[]> {
+  const response =
+    await apiFetch<QuestsResponse>("/quests/admin/deleted");
+
+  if (!response.success) {
+    throw new Error(
+      response.message ??
+        "Impossible de récupérer les quêtes supprimées."
+    );
+  }
+
+  return response.data.quests;
+}
+
+/**
+ * Restaure une quête supprimée.
+ */
+export async function restoreQuest(
+  questId: string
+): Promise<QuestDefinition> {
+  const response =
+    await apiFetch<QuestResponse>(
+      `/quests/admin/${questId}/restore`,
+      { method: "POST" }
+    );
+
+  if (!response.success) {
+    throw new Error(
+      response.message ??
+        "Impossible de restaurer la quête."
+    );
+  }
+
+  return response.data.quest;
+}
+
 /**
  * Récupère une quête.
  */

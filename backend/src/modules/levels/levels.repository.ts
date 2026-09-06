@@ -128,6 +128,21 @@ export class LevelsRepository {
       });
   }
 
+  async resetAllUserLevels(): Promise<number> {
+    const result = await UserLevel.updateMany(
+      {},
+      {
+        $set: {
+          xp: 0,
+          level: 1,
+          history: [],
+        },
+      }
+    );
+
+    return result.modifiedCount;
+  }
+
   // ============================================================
   // PROTECTION DES RÉCOMPENSES XP
   // ============================================================

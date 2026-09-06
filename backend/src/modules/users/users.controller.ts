@@ -380,7 +380,7 @@ export async function uploadAvatar(
         },
       },
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }
     ).select("-passwordHash");
@@ -446,7 +446,7 @@ export async function uploadMyAvatar(
         },
       },
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }
     ).select("-passwordHash");
@@ -493,7 +493,7 @@ export async function deleteMyAvatar(
         },
       },
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }
     ).select("-passwordHash");

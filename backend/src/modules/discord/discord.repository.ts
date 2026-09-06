@@ -37,7 +37,7 @@ export async function updateLink(
       $set: data,
     },
     {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     }
   ).exec();

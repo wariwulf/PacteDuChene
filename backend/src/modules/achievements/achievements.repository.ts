@@ -45,7 +45,7 @@ export class AchievementsRepository {
     return Achievement.findOneAndUpdate(
       { achievementId },
       data,
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     );
   }
 
@@ -170,7 +170,7 @@ export class AchievementsRepository {
           reviewedAt: new Date(),
         },
       },
-      { new: true }
+      { returnDocument: "after" }
     );
   }
 }

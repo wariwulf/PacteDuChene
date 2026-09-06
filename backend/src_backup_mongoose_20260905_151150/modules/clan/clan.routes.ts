@@ -1,0 +1,14 @@
+import {Router} from "express";
+import multer from "multer";
+import path from "path";
+import fs from "fs";
+import {clanController} from "./clan.controller";
+import {clanService} from "./clan.service";
+const router=Router();
+router.get("/tree",clanController.tree);
+router.get("/members/:memberId",clanController.getMember);
+router.put("/members/:memberId",clanController.saveMember);
+const dir=path.join(process.cwd(),"uploads","clan");fs.mkdirSync(dir,{recursive:true});
+const upload=multer({storage:multer.diskStorage({destination:(_req,_file,cb)=>cb(null,dir),filename:(req,file,cb)=>cb(null,`clan-${req.params.memberId}-${Date.now()}${path.extname(file.originalname).toLowerCase()||".jpg"}`)}),limits:{fileSize:5*1024*1024},fileFilter:(_req,file,cb)=>cb(null,["image/jpeg","image/png","image/webp"].includes(file.mimetype))});
+router.post("/members/:memberId/portrait",upload.single("portrait"),async(req,res)=>{try{const memberId=Array.isArray(req.params.memberId)?req.params.memberId[0]:req.params.memberId;if(!memberId||!req.file)return res.status(400).json({success:false,message:"Membre ou portrait manquant."});const portrait=`/uploads/clan/${req.file.filename}`;const data=await clanService.setPortrait(memberId,portrait);return res.json({success:true,data,portrait});}catch(error){console.error(error);return res.status(400).json({success:false,message:error instanceof Error?error.message:"Impossible d'enregistrer le portrait."});}});
+export default router;

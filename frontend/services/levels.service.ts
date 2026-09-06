@@ -29,6 +29,29 @@ export async function getLevels(): Promise<LevelDefinition[]> {
 }
 
 /**
+ * Remet à zéro les progressions de tous les membres.
+ * Cette opération est protégée côté backend et réservée au OWNER.
+ */
+export async function resetAllUserLevels(): Promise<number> {
+  const response = await apiFetch<{
+    success: boolean;
+    data?: { resetCount?: number };
+    message?: string;
+  }>("/levels/admin/reset-all", {
+    method: "POST",
+  });
+
+  if (!response.success) {
+    throw new Error(
+      response.message ||
+        "Impossible de remettre les progressions à zéro."
+    );
+  }
+
+  return response.data?.resetCount ?? 0;
+}
+
+/**
  * Récupère le niveau d'un utilisateur.
  */
 export async function getUserLevel(

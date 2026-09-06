@@ -12,6 +12,7 @@ from config import Settings, load_settings
 from services.members import MemberService
 from services.economy import EconomyService
 from services.member_sync import MemberSyncService
+from services.events import DiscordEventService
 
 
 class PacteBot(commands.Bot):
@@ -30,16 +31,19 @@ class PacteBot(commands.Bot):
         self.api_client = PacteApiClient(settings.pacte_api_url, settings.pacte_bot_api_key)
         self.member_sync_service = MemberSyncService(self.api_client, settings)
         self.economy_service = EconomyService(self.api_client)
+        self.event_service = DiscordEventService(self, self.api_client, settings.discord_guild_id, settings.event_poll_seconds, settings.pacte_site_url)
 
     async def setup_hook(self) -> None:
         self.tree.add_command(build_profile_command(MemberService(self.api_client)))
         self.tree.add_command(build_sync_members_command(self.member_sync_service))
         await register_economy(self, self.economy_service, self.settings.economy_voice_poll_seconds)
+        self.event_service.start()
         guild = discord.Object(id=self.settings.discord_guild_id)
         self.tree.copy_global_to(guild=guild)
         await self.tree.sync(guild=guild)
 
     async def close(self) -> None:
+        await self.event_service.stop()
         await self.api_client.close()
         await super().close()
 

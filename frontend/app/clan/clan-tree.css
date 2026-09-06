@@ -183,6 +183,20 @@
   text-overflow: ellipsis;
 }
 
+.level-badge {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  padding: 3px 7px;
+  border: 1px solid rgba(245, 164, 0, .45);
+  border-radius: 999px;
+  background: rgba(80, 48, 4, .30);
+  color: #f5c55a;
+  font-size: .68rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
 .title {
   color: #65df99;
   font-size: .82rem;

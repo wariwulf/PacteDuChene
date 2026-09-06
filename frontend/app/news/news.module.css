@@ -16,7 +16,7 @@
 
 .background {
   z-index: -3;
-  background-image: url("/images/news-board-background.png");
+  background-image: url("/images/news-background.png");
   background-position: center top;
   background-repeat: no-repeat;
   background-size: cover;

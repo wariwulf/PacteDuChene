@@ -20,7 +20,7 @@ export class UserRepository {
     data: Partial<UserModelDocument>
   ): Promise<UserModelDocument | null> {
     return User.findByIdAndUpdate(id, data, {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     });
   }

@@ -1,4 +1,5 @@
-import { apiFetch, API_URL } from "./client";
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 export interface AuthUser {
   id: string;
@@ -6,95 +7,71 @@ export interface AuthUser {
   username: string;
   role: string;
   mustChangePassword: boolean;
+  permissions: string[];
+  isFactionLeader: boolean;
+  factionRoleId?: string;
 }
 
 function extractUser(payload: any): AuthUser {
-  const user =
-    payload?.data?.user ??
-    payload?.user ??
-    payload?.data ??
-    payload;
+  return payload?.data?.user || payload?.user || payload?.data || payload;
+}
 
-  return {
-    id: String(user?.id ?? ""),
-    email: String(user?.email ?? ""),
-    username: String(user?.username ?? ""),
-    role: String(user?.role ?? "PLAYER"),
-    mustChangePassword: Boolean(
-      user?.mustChangePassword
-    ),
-  };
+async function parseResponse(response: Response) {
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.success === false) {
+    throw new Error(
+      payload?.message || `Erreur serveur (${response.status})`
+    );
+  }
+  return payload;
 }
 
 export async function login(
   email: string,
   password: string
 ): Promise<AuthUser> {
-  const payload = await apiFetch<any>("/auth/login", {
+  const response = await fetch(`${API_URL}/auth/login`, {
     method: "POST",
-    body: JSON.stringify({
-      email: email.trim(),
-      password,
-    }),
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
   });
+  return extractUser(await parseResponse(response));
+}
 
-  return extractUser(payload);
+/** OAuth nécessite une navigation navigateur afin que Discord puisse rediriger vers le callback backend. */
+export function startDiscordLogin(): void {
+  window.location.assign(`${API_URL}/auth/discord`);
 }
 
 export async function getCurrentUser(): Promise<AuthUser | null> {
-  try {
-    const payload = await apiFetch<any>("/auth/me", {
-      method: "GET",
-      cache: "no-store",
-    });
+  const response = await fetch(`${API_URL}/auth/me`, {
+    method: "GET",
+    credentials: "include",
+    cache: "no-store",
+  });
 
-    return extractUser(payload);
-  } catch (error) {
-    /*
-     * Une absence de session est normale.
-     * Le backend utilise 401 dans ce cas.
-     */
-    if (
-      error instanceof Error &&
-      (
-        error.message.includes("401") ||
-        error.message.toLowerCase().includes("authentification")
-      )
-    ) {
-      return null;
-    }
-
-    throw error;
-  }
-}
-
-/**
- * Connexion Discord.
- *
- * OAuth nécessite une navigation complète du navigateur
- * afin que Discord puisse rediriger vers le callback backend.
- */
-export function startDiscordLogin(): void {
-  window.location.assign(
-    `${API_URL}/auth/discord`
-  );
+  if (response.status === 401) return null;
+  return extractUser(await parseResponse(response));
 }
 
 export async function logout(): Promise<void> {
-  await apiFetch("/auth/logout", {
+  const response = await fetch(`${API_URL}/auth/logout`, {
     method: "POST",
+    credentials: "include",
   });
+  await parseResponse(response);
 }
 
 export async function changePassword(
   currentPassword: string,
   newPassword: string
 ): Promise<void> {
-  await apiFetch("/users/change-password", {
+  const response = await fetch(`${API_URL}/users/change-password`, {
     method: "POST",
-    body: JSON.stringify({
-      currentPassword,
-      newPassword,
-    }),
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ currentPassword, newPassword }),
   });
+  await parseResponse(response);
 }

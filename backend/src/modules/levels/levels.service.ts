@@ -513,6 +513,14 @@ export class LevelsService {
   }
 
   // =========================================================
+  // REMISE À ZÉRO GLOBALE
+  // =========================================================
+
+  async resetAllUserLevels(): Promise<number> {
+    return this.levelsRepository.resetAllUserLevels();
+  }
+
+  // =========================================================
   // ADMINISTRATION DES PALIERS
   // =========================================================
 

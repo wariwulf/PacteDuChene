@@ -33,8 +33,8 @@ export const navigation: NavigationItem[] = [
     access: "member",
   },
   {
-    label: "Économie",
-    href: "/espace-membre/economie",
+    label: "Inventaire",
+    href: "/inventaire",
     access: "member",
   },
   {

@@ -1,146 +1,91 @@
 "use client";
-
 import { FormEvent, useEffect, useState } from "react";
-import {
-  createClanEvent, deleteClanEvent, getAdminClanEvents, updateClanEvent,
-  type ClanEvent, type ClanEventType, type ClanEventStatus,
-} from "@/services/clan-events.service";
+import { createClanEvent, deleteClanEvent, getAdminClanEvents, updateClanEvent, uploadClanEventImage, type ClanEvent, type ClanEventMode, type ClanEventType, type ParticipationOptions, type Recurrence, type EventObjective, type EventReward, type CurrencyId } from "@/services/clan-events.service";
 
-const types: ClanEventType[] = ["COLLECTE","COMBAT","CEREMONIE","REUNION","SORTIE","AUTRE"];
-const labels: Record<ClanEventType,string> = {
-  COLLECTE:"Collecte", COMBAT:"Combat", CEREMONIE:"Cérémonie",
-  REUNION:"Réunion", SORTIE:"Sortie", AUTRE:"Autre",
-};
-const statusLabels: Record<ClanEventStatus,string> = {
-  PUBLISHED:"Publié", CANCELLED:"Annulé", COMPLETED:"Terminé",
-};
-
-interface FormState {
-  eventId:string; title:string; description:string; type:ClanEventType;
-  startsAt:string; endsAt:string; location:string; discordChannel:string;
-}
-const empty:FormState = {eventId:"",title:"",description:"",type:"AUTRE",startsAt:"",endsAt:"",location:"",discordChannel:""};
-
-function localInput(value?: string) {
-  if (!value) return "";
-  const d = new Date(value); if (Number.isNaN(d.getTime())) return "";
-  const offset = d.getTimezoneOffset();
-  return new Date(d.getTime()-offset*60000).toISOString().slice(0,16);
-}
-
-export default function AdministrationEvenementsPage() {
-  const [events,setEvents]=useState<ClanEvent[]>([]);
-  const [form,setForm]=useState<FormState>(empty);
-  const [editing,setEditing]=useState<string|null>(null);
-  const [loading,setLoading]=useState(true);
-  const [saving,setSaving]=useState(false);
-  const [error,setError]=useState("");
-  const [message,setMessage]=useState("");
-
-  async function load() {
-    try { setLoading(true); setError(""); setEvents(await getAdminClanEvents()); }
-    catch(e){setError(e instanceof Error?e.message:"Impossible de charger les événements.");}
-    finally{setLoading(false);}
-  }
-  useEffect(()=>{load();},[]);
-
-  function edit(e:ClanEvent){
-    setEditing(e.eventId);
-    setForm({eventId:e.eventId,title:e.title,description:e.description??"",type:e.type,
-      startsAt:localInput(e.startsAt),endsAt:localInput(e.endsAt),location:e.location??"",discordChannel:e.discordChannel??""});
-    window.scrollTo({top:0,behavior:"smooth"});
-  }
-  function reset(){setEditing(null);setForm(empty);}
-
-  async function submit(ev:FormEvent){
-    ev.preventDefault();
-    if(!form.eventId.trim()||!form.title.trim()||!form.startsAt){setError("L'identifiant, le titre et la date de début sont obligatoires.");return;}
-    try{
-      setSaving(true);setError("");setMessage("");
-      const data={title:form.title.trim(),description:form.description.trim(),type:form.type,
-        startsAt:new Date(form.startsAt).toISOString(),endsAt:form.endsAt?new Date(form.endsAt).toISOString():undefined,
-        location:form.location.trim(),discordChannel:form.discordChannel.trim()};
-      if(editing){await updateClanEvent(editing,data);setMessage("Événement modifié.");}
-      else{await createClanEvent({...data,eventId:form.eventId.trim(),status:"PUBLISHED"});setMessage("Événement créé.");}
-      reset();await load();
-    }catch(e){setError(e instanceof Error?e.message:"Impossible d'enregistrer l'événement.");}
-    finally{setSaving(false);}
-  }
-
-  async function status(e:ClanEvent,s:ClanEventStatus){
-    try{setError("");await updateClanEvent(e.eventId,{status:s});await load();}
-    catch(err){setError(err instanceof Error?err.message:"Impossible de modifier le statut.");}
-  }
-  async function remove(e:ClanEvent){
-    if(!window.confirm(`Supprimer « ${e.title} » et toutes ses réponses ?`))return;
-    try{setError("");await deleteClanEvent(e.eventId);await load();}
-    catch(err){setError(err instanceof Error?err.message:"Impossible de supprimer l'événement.");}
-  }
-
-  return <main className="min-h-screen bg-green-950 px-6 py-12 text-white">
-    <div className="mx-auto max-w-6xl">
-      <header className="mb-10"><p className="text-sm font-bold uppercase tracking-[0.3em] text-amber-400">Administration</p>
-        <h1 className="mt-2 text-4xl font-bold">Événements</h1>
-        <p className="mt-3 text-green-300">Créez et gérez les rendez-vous du Pacte et leurs inscriptions.</p>
-      </header>
-      {error&&<div className="mb-6 rounded-xl border border-red-700 bg-red-950/40 p-5 text-red-300">{error}</div>}
-      {message&&<div className="mb-6 rounded-xl border border-green-700 bg-green-900/50 p-5 text-green-300">{message}</div>}
-
-      <form onSubmit={submit} className="mb-10 rounded-2xl border border-green-800 bg-green-900/50 p-6 md:p-8">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div><p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-400">{editing?"Modification":"Nouvel événement"}</p>
-            <h2 className="mt-1 text-2xl font-bold">{editing?form.title||"Modifier l'événement":"Créer un événement"}</h2></div>
-          {editing&&<button type="button" onClick={reset} className="rounded-lg border border-green-700 px-4 py-2 text-sm font-semibold text-green-200">Annuler</button>}
-        </div>
-        <div className="mt-6 grid gap-5 md:grid-cols-2">
-          {[
-            ["Identifiant","eventId","ex: grands-funebriers-2026-08-29"],
-            ["Titre","title","Les grands Funébriers"],
-            ["Lieu","location","Lyoness — Grand Chêne"],
-            ["Salon Discord","discordChannel","#événements"],
-          ].map(([label,key,placeholder])=><label key={key}><span className="mb-2 block text-sm font-semibold">{label}</span>
-            <input disabled={key==="eventId"&&!!editing} value={form[key as keyof FormState] as string}
-              onChange={e=>setForm({...form,[key]:e.target.value})} placeholder={placeholder}
-              className="w-full rounded-lg border border-green-700 bg-green-950 px-4 py-3 outline-none placeholder:text-green-600 focus:border-amber-500 disabled:opacity-50"/>
-          </label>)}
-          <label><span className="mb-2 block text-sm font-semibold">Type</span>
-            <select value={form.type} onChange={e=>setForm({...form,type:e.target.value as ClanEventType})}
-              className="w-full rounded-lg border border-green-700 bg-green-950 px-4 py-3 outline-none">
-              {types.map(t=><option key={t} value={t}>{labels[t]}</option>)}</select>
-          </label>
-          <label><span className="mb-2 block text-sm font-semibold">Début</span>
-            <input type="datetime-local" value={form.startsAt} onChange={e=>setForm({...form,startsAt:e.target.value})}
-              className="w-full rounded-lg border border-green-700 bg-green-950 px-4 py-3 outline-none"/></label>
-          <label><span className="mb-2 block text-sm font-semibold">Fin</span>
-            <input type="datetime-local" value={form.endsAt} onChange={e=>setForm({...form,endsAt:e.target.value})}
-              className="w-full rounded-lg border border-green-700 bg-green-950 px-4 py-3 outline-none"/></label>
-          <label className="md:col-span-2"><span className="mb-2 block text-sm font-semibold">Description</span>
-            <textarea rows={5} value={form.description} onChange={e=>setForm({...form,description:e.target.value})}
-              className="w-full resize-y rounded-lg border border-green-700 bg-green-950 px-4 py-3 outline-none placeholder:text-green-600 focus:border-amber-500"
-              placeholder="Déroulement, consignes, matériel..."/></label>
-        </div>
-        <button disabled={saving} className="mt-6 rounded-lg bg-amber-600 px-6 py-3 font-semibold hover:bg-amber-500 disabled:opacity-50">
-          {saving?"Enregistrement...":editing?"Enregistrer les modifications":"Créer l'événement"}
-        </button>
-      </form>
-
-      <section><div className="mb-5 flex items-center justify-between"><div><p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-400">Calendrier</p><h2 className="mt-1 text-2xl font-bold">Tous les événements</h2></div>
-        <button onClick={load} disabled={loading} className="rounded-lg border border-green-700 px-4 py-2 text-sm font-semibold text-green-200">Actualiser</button></div>
-        {loading?<p className="text-green-300">Chargement...</p>:events.length===0?<div className="rounded-xl border border-green-800 bg-green-900/40 p-8 text-center text-green-300">Aucun événement enregistré.</div>:
-        <div className="space-y-4">{events.map(e=><article key={e.eventId} className="rounded-xl border border-green-800 bg-green-900/50 p-5">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between"><div>
-            <div className="flex flex-wrap gap-2"><span className="rounded-full bg-amber-600/20 px-3 py-1 text-xs font-bold text-amber-300">{labels[e.type]}</span>
-              <span className="rounded-full border border-green-700 px-3 py-1 text-xs text-green-300">{statusLabels[e.status]}</span></div>
-            <h3 className="mt-3 text-xl font-bold">{e.title}</h3><p className="mt-1 text-sm text-green-400">{new Date(e.startsAt).toLocaleString("fr-FR")}{e.location?` · ${e.location}`:""}</p>
-          </div><div className="flex flex-wrap gap-2">
-            <button onClick={()=>edit(e)} className="rounded-lg border border-green-700 px-4 py-2 text-sm font-semibold text-green-200">Modifier</button>
-            {e.status==="PUBLISHED"&&<><button onClick={()=>status(e,"CANCELLED")} className="rounded-lg border border-red-700 px-4 py-2 text-sm text-red-300">Annuler</button>
-              <button onClick={()=>status(e,"COMPLETED")} className="rounded-lg border border-amber-700 px-4 py-2 text-sm text-amber-300">Terminer</button></>}
-            {e.status==="CANCELLED"&&<button onClick={()=>status(e,"PUBLISHED")} className="rounded-lg border border-green-700 px-4 py-2 text-sm text-green-300">Republier</button>}
-            <button onClick={()=>remove(e)} className="rounded-lg border border-red-900 px-4 py-2 text-sm text-red-400">Supprimer</button>
-          </div></div>
-        </article>)}</div>}
-      </section>
+const types:ClanEventType[]=["COLLECTE","COMBAT","CEREMONIE","REUNION","SORTIE","AUTRE"];
+const labels:Record<string,string>={COLLECTE:"Collecte",COMBAT:"Combat",CEREMONIE:"Cérémonie",REUNION:"Réunion",SORTIE:"Sortie",AUTRE:"Autre"};
+const emptyOptions:ParticipationOptions={accepted:true,declined:true,maybe:true,attempts:false};
+const emptyRec:Recurrence={enabled:false,frequency:"WEEKLY",interval:1,weekdays:[1]};
+function slug(s:string){return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"").slice(0,70);}
+function local(v?:string){if(!v)return "";const d=new Date(v);if(Number.isNaN(d.getTime()))return "";const off=d.getTimezoneOffset();return new Date(d.getTime()-off*60000).toISOString().slice(0,16);}
+function uid(prefix:string){return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2,7)}`;}
+const defaultForm=()=>({eventId:"",title:"",description:"",type:"AUTRE" as ClanEventType,mode:"INSTANT" as ClanEventMode,startsAt:"",durationMinutes:"120",location:"",discordChannel:"",imageUrl:"",reminderMinutes:"60",objectives:[] as EventObjective[],rewards:[] as EventReward[],participationOptions:{...emptyOptions},recurrence:{...emptyRec}});
+export default function AdministrationEvenementsPage(){
+ const [events,setEvents]=useState<ClanEvent[]>([]);const [form,setForm]=useState(defaultForm());const [editing,setEditing]=useState<string|null>(null);const [loading,setLoading]=useState(true);const [saving,setSaving]=useState(false);const [error,setError]=useState("");const [message,setMessage]=useState("");const [image,setImage]=useState<File|null>(null);
+ async function load(){try{setLoading(true);setError("");setEvents(await getAdminClanEvents());}catch(e){setError(e instanceof Error?e.message:"Impossible de charger les événements.");}finally{setLoading(false);}}
+ useEffect(()=>{void load();},[]);
+ function reset(){setEditing(null);setForm(defaultForm());setImage(null);}
+ function edit(e:ClanEvent){setEditing(e.eventId);setForm({eventId:e.eventId,title:e.title,description:e.description??"",type:e.type,mode:e.mode??"INSTANT",startsAt:local(e.startsAt),durationMinutes:String(e.durationMinutes??120),location:e.location??"",discordChannel:e.discordChannel??e.discordChannelId??"",imageUrl:e.imageUrl??"",reminderMinutes:String(e.reminderMinutes??60),objectives:e.objectives??[],rewards:e.rewards??[],participationOptions:e.participationOptions??{...emptyOptions},recurrence:e.recurrence??{...emptyRec}});setImage(null);window.scrollTo({top:0,behavior:"smooth"});}
+ function addObjective(required=true){setForm(f=>({...f,objectives:[...f.objectives,{objectiveId:uid("obj"),title:"",description:"",required}]}));}
+ function addReward(){setForm(f=>({...f,rewards:[...f.rewards,{rewardId:uid("reward"),currencyId:"bronze",amount:100,label:""}]}));}
+ async function submit(ev:FormEvent){ev.preventDefault();try{setSaving(true);setError("");setMessage("");if(!form.title.trim()||!form.startsAt)throw new Error("Le titre et la date de début sont obligatoires.");const data:any={title:form.title.trim(),description:form.description.trim(),type:form.type,mode:form.mode,startsAt:new Date(form.startsAt).toISOString(),durationMinutes:Number(form.durationMinutes)||120,location:form.location.trim(),discordChannel:form.discordChannel.trim(),imageUrl:form.imageUrl.trim(),reminderMinutes:Number(form.reminderMinutes)||0,objectives:form.objectives.filter(o=>o.title.trim()).map(o=>({...o,title:o.title.trim()})),rewards:form.rewards.filter(r=>Number(r.amount)>0),participationOptions:form.participationOptions,recurrence:form.recurrence};let saved:ClanEvent;if(editing){saved=await updateClanEvent(editing,data);setMessage("Événement modifié. Le message Discord sera synchronisé par le bot.");}else{const id=form.eventId.trim()||slug(form.title)||uid("evenement");saved=await createClanEvent({...data,eventId:id,status:"PUBLISHED"});setMessage("Événement créé. Le bot va publier le rendez-vous sur Discord.");}if(image){saved=await uploadClanEventImage(saved.eventId,image);}reset();await load();}catch(e){setError(e instanceof Error?e.message:"Impossible d'enregistrer l'événement.");}finally{setSaving(false);}}
+ async function status(id:string,status:string){try{await updateClanEvent(id,{status});await load();}catch(e){setError(e instanceof Error?e.message:"Impossible de modifier le statut.");}}
+ async function remove(id:string){if(!confirm("Supprimer définitivement cet événement ?"))return;try{await deleteClanEvent(id);await load();}catch(e){setError(e instanceof Error?e.message:"Impossible de supprimer l'événement.");}}
+ const field="w-full rounded-lg border border-green-800 bg-[#06170e] px-4 py-3 text-white outline-none placeholder:text-green-700 focus:border-amber-500";
+ return <main className="min-h-screen bg-[#04100a] px-4 py-10 text-white sm:px-6"><div className="mx-auto max-w-7xl"><header className="mb-8"><p className="text-xs font-bold uppercase tracking-[.3em] text-amber-400">Administration</p><h1 className="mt-2 text-4xl font-bold">Événements du Pacte</h1><p className="mt-2 text-green-300">Créez les rendez-vous, missions et expéditions qui seront publiés sur Discord et dans l'espace membre.</p></header>
+ {error&&<div className="mb-5 rounded-xl border border-red-800 bg-red-950/60 p-4 text-red-200">{error}</div>}{message&&<div className="mb-5 rounded-xl border border-green-700 bg-green-950/60 p-4 text-green-200">{message}</div>}
+ <form onSubmit={submit} className="mb-10 rounded-2xl border border-green-800 bg-[#092317]/95 p-5 shadow-2xl md:p-7"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-bold uppercase tracking-[.2em] text-amber-400">{editing?"Modifier un événement":"Nouvel événement"}</p><h2 className="mt-1 text-2xl font-bold">{editing?form.title||"Événement en cours":"Créer un rendez-vous"}</h2></div>{editing&&<button type="button" onClick={reset} className="rounded-lg border border-green-700 px-4 py-2 text-sm">Annuler</button>}</div>
+ <div className="mt-6 grid gap-5 md:grid-cols-2"><label><span className="mb-2 block text-sm font-semibold">Titre *</span><input className={field} value={form.title} onChange={e=>setForm({...form,title:e.target.value,eventId:editing?form.eventId:slug(e.target.value)})} placeholder="Conquête du Funébois"/></label><label><span className="mb-2 block text-sm font-semibold">Identifiant technique</span><input disabled={!!editing} className={`${field} disabled:opacity-50`} value={form.eventId} onChange={e=>setForm({...form,eventId:e.target.value})}/></label>
+ <label><span className="mb-2 block text-sm font-semibold">Nature</span><select className={field} value={form.mode} onChange={e=>setForm({...form,mode:e.target.value as ClanEventMode})}><option value="INSTANT">Action instantanée / événement court</option><option value="LONG">Mission longue / événement étendu</option></select></label><label><span className="mb-2 block text-sm font-semibold">Catégorie</span><select className={field} value={form.type} onChange={e=>setForm({...form,type:e.target.value as ClanEventType})}>{types.map(t=><option key={t} value={t}>{labels[t]}</option>)}</select></label>
+ <label><span className="mb-2 block text-sm font-semibold">Début *</span><input type="datetime-local" className={field} value={form.startsAt} onChange={e=>setForm({...form,startsAt:e.target.value})}/></label><label><span className="mb-2 block text-sm font-semibold">Durée (minutes)</span><input type="number" min="1" className={field} value={form.durationMinutes} onChange={e=>setForm({...form,durationMinutes:e.target.value})}/></label>
+ <label><span className="mb-2 block text-sm font-semibold">Lieu</span><input className={field} value={form.location} onChange={e=>setForm({...form,location:e.target.value})} placeholder="Lyoness — Grand Chêne"/></label><label><span className="mb-2 block text-sm font-semibold">Salon Discord (ID ou nom)</span><input className={field} value={form.discordChannel} onChange={e=>setForm({...form,discordChannel:e.target.value})} placeholder="123456789012345678"/></label>
+ <label><span className="mb-2 block text-sm font-semibold">Image</span><input type="file" accept="image/png,image/jpeg,image/webp" className={field} onChange={e=>setImage(e.target.files?.[0]??null)}/></label><label><span className="mb-2 block text-sm font-semibold">Ou URL de l'image</span><input className={field} value={form.imageUrl} onChange={e=>setForm({...form,imageUrl:e.target.value})} placeholder="https://…"/></label>
+ <label className="md:col-span-2"><span className="mb-2 block text-sm font-semibold">Description</span><textarea rows={6} className={field} value={form.description} onChange={e=>setForm({...form,description:e.target.value})} placeholder="Contexte, consignes, déroulement…"/></label></div>
+ <div className="mt-8 grid gap-6 lg:grid-cols-2"><section className="rounded-xl border border-green-800 bg-[#061a10] p-5"><div className="flex items-center justify-between"><div><h3 className="font-bold text-amber-300">Objectifs principaux</h3><p className="text-sm text-green-400">Les objectifs obligatoires de l'événement.</p></div><button type="button" onClick={()=>addObjective(true)} className="rounded-lg bg-amber-700 px-3 py-2 text-sm font-semibold">+ Ajouter</button></div><div className="mt-4 space-y-3">{form.objectives.filter(o=>o.required).map((o,i)=><div key={o.objectiveId} className="rounded-lg border border-green-800 bg-green-950/70 p-3"><input className={field} value={o.title} onChange={e=>setForm(f=>({...f,objectives:f.objectives.map(x=>x.objectiveId===o.objectiveId?{...x,title:e.target.value}:x)}))} placeholder={`Objectif ${i+1}`}/><textarea className={`${field} mt-2`} rows={2} value={o.description??""} onChange={e=>setForm(f=>({...f,objectives:f.objectives.map(x=>x.objectiveId===o.objectiveId?{...x,description:e.target.value}:x)}))} placeholder="Détail facultatif"/><button type="button" onClick={()=>setForm(f=>({...f,objectives:f.objectives.filter(x=>x.objectiveId!==o.objectiveId)}))} className="mt-2 text-xs text-red-300">Retirer</button></div>)}</div></section>
+ <section className="rounded-xl border border-green-800 bg-[#061a10] p-5"><div className="flex items-center justify-between"><div><h3 className="font-bold text-amber-300">Objectifs secondaires</h3><p className="text-sm text-green-400">Facultatifs.</p></div><button type="button" onClick={()=>addObjective(false)} className="rounded-lg border border-amber-700 px-3 py-2 text-sm">+ Ajouter</button></div><div className="mt-4 space-y-3">{form.objectives.filter(o=>!o.required).map(o=><div key={o.objectiveId} className="rounded-lg border border-green-800 bg-green-950/70 p-3"><input className={field} value={o.title} onChange={e=>setForm(f=>({...f,objectives:f.objectives.map(x=>x.objectiveId===o.objectiveId?{...x,title:e.target.value}:x)}))} placeholder="Objectif secondaire"/><textarea className={`${field} mt-2`} rows={2} value={o.description??""} onChange={e=>setForm(f=>({...f,objectives:f.objectives.map(x=>x.objectiveId===o.objectiveId?{...x,description:e.target.value}:x)}))} placeholder="Détail facultatif"/><button type="button" onClick={()=>setForm(f=>({...f,objectives:f.objectives.filter(x=>x.objectiveId!==o.objectiveId)}))} className="mt-2 text-xs text-red-300">Retirer</button></div>)}</div></section></div>
+ <section className="mt-6 rounded-xl border border-green-800 bg-[#061a10] p-5"><div className="flex items-center justify-between"><div><h3 className="font-bold text-amber-300">Récompenses</h3><p className="text-sm text-green-400">Attribuées aux participants ayant accepté l'événement lorsque celui-ci est terminé.</p></div><button type="button" onClick={addReward} className="rounded-lg bg-amber-700 px-3 py-2 text-sm font-semibold">+ Ajouter</button></div><div className="mt-4 grid gap-3 md:grid-cols-2">{form.rewards.map(r=><div key={r.rewardId} className="rounded-lg border border-green-800 bg-green-950/70 p-3"><div className="grid grid-cols-2 gap-2"><select className={field} value={r.currencyId} onChange={e=>setForm(f=>({...f,rewards:f.rewards.map(x=>x.rewardId===r.rewardId?{...x,currencyId:e.target.value as CurrencyId}:x)}))}><option value="bronze">Bronze</option><option value="argent">Argent</option><option value="solidus">Solidus</option></select><input type="number" min="1" className={field} value={r.amount} onChange={e=>setForm(f=>({...f,rewards:f.rewards.map(x=>x.rewardId===r.rewardId?{...x,amount:Number(e.target.value)}:x)}))}/></div><input className={`${field} mt-2`} value={r.label??""} onChange={e=>setForm(f=>({...f,rewards:f.rewards.map(x=>x.rewardId===r.rewardId?{...x,label:e.target.value}:x)}))} placeholder="Ex : Prime de conquête"/><button type="button" onClick={()=>setForm(f=>({...f,rewards:f.rewards.filter(x=>x.rewardId!==r.rewardId)}))} className="mt-2 text-xs text-red-300">Retirer</button></div>)}</div></section>
+ <div className="mt-6 grid gap-6 lg:grid-cols-2"><section className="rounded-xl border border-green-800 bg-[#061a10] p-5"><h3 className="font-bold text-amber-300">Réponses Discord</h3><div className="mt-3 grid gap-3 sm:grid-cols-2">{([['accepted','Je participe'],['maybe','Peut-être'],['declined','Je ne participe pas']] as const).map(([k,l])=><label key={k} className="flex items-center gap-3 rounded-lg bg-green-950/70 p-3"><input type="checkbox" checked={form.participationOptions[k]} onChange={e=>setForm(f=>({...f,participationOptions:{...f.participationOptions,[k]:e.target.checked}}))}/>{l}</label>)}</div><label className="mt-3 flex items-center gap-3 rounded-lg bg-green-950/70 p-3"><input type="checkbox" checked={form.participationOptions.attempts} onChange={e=>setForm(f=>({...f,participationOptions:{...f.participationOptions,attempts:e.target.checked}}))}/> Activer le suivi des tentatives</label></section>
+ <section className="rounded-xl border border-green-800 bg-[#061a10] p-5"><h3 className="font-bold text-amber-300">Rappel</h3><p className="mt-1 text-sm text-green-400">Le bot publiera un rappel dans le même salon.</p><label className="mt-3 block"><span className="mb-2 block text-sm">Minutes avant le début (0 = aucun)</span><input type="number" min="0" className={field} value={form.reminderMinutes} onChange={e=>setForm({...form,reminderMinutes:e.target.value})}/></label></section></div>
+ <section className="mt-6 rounded-xl border border-green-800 bg-[#061a10] p-5"><div className="flex flex-wrap items-center justify-between gap-4"><div><h3 className="font-bold text-amber-300">Récurrence</h3><p className="text-sm text-green-400">Chaque occurrence sera publiée, suivie et archivée séparément.</p></div><label className="flex items-center gap-2"><input type="checkbox" checked={form.recurrence.enabled} onChange={e=>setForm(f=>({...f,recurrence:{...f.recurrence,enabled:e.target.checked}}))}/> Répéter cet événement</label></div>{form.recurrence.enabled&&<div className="mt-4 grid gap-4 md:grid-cols-3"><select className={field} value={form.recurrence.frequency} onChange={e=>setForm(f=>({...f,recurrence:{...f.recurrence,frequency:e.target.value as any}}))}><option value="DAILY">Tous les jours</option><option value="WEEKLY">Toutes les semaines</option><option value="MONTHLY">Tous les mois</option></select><input type="number" min="1" className={field} value={form.recurrence.interval??1} onChange={e=>setForm(f=>({...f,recurrence:{...f.recurrence,interval:Number(e.target.value)}}))} placeholder="Intervalle"/>{form.recurrence.frequency==="MONTHLY"?<div className="grid grid-cols-2 gap-2"><input type="number" min="1" max="31" className={field} value={form.recurrence.monthDay??""} onChange={e=>setForm(f=>({...f,recurrence:{...f.recurrence,monthDay:Number(e.target.value)}}))} placeholder="Jour du mois"/><select className={field} value={form.recurrence.nthWeek??""} onChange={e=>setForm(f=>({...f,recurrence:{...f.recurrence,nthWeek:Number(e.target.value) as any}}))}><option value="">Semaine…</option><option value="1">1er</option><option value="2">2e</option><option value="3">3e</option><option value="4">4e</option><option value="5">5e</option></select><select className={`${field} col-span-2`} value={form.recurrence.nthWeekday??""} onChange={e=>setForm(f=>({...f,recurrence:{...f.recurrence,nthWeekday:Number(e.target.value)}}))}><option value="">Jour…</option>{["Dimanche","Lundi","Mardi","Mercredi","Jeudi","Vendredi","Samedi"].map((x,i)=><option key={x} value={i}>{x}</option>)}</select></div>:<div className="flex flex-wrap gap-2 rounded-lg bg-green-950/70 p-3">{["D","L","M","M","J","V","S"].map((x,i)=><label key={i} className="flex items-center gap-1 text-sm"><input type="checkbox" checked={(form.recurrence.weekdays??[]).includes(i)} onChange={e=>setForm(f=>({...f,recurrence:{...f.recurrence,weekdays:e.target.checked?[...(f.recurrence.weekdays??[]),i]:(f.recurrence.weekdays??[]).filter(d=>d!==i)}}))}/>{x}</label>)}</div>}</div>}</section>
+ <button disabled={saving} className="mt-7 rounded-lg bg-amber-600 px-6 py-3 font-semibold hover:bg-amber-500 disabled:opacity-50">{saving?"Enregistrement…":editing?"Enregistrer les modifications":"Créer et publier l'événement"}</button>
+ </form>
+ <section>
+  <div className="mb-5 flex items-center justify-between">
+    <div>
+      <p className="text-xs font-bold uppercase tracking-[.2em] text-amber-400">Archives et calendrier</p>
+      <h2 className="mt-1 text-2xl font-bold">Événements</h2>
     </div>
-  </main>;
+    <button onClick={()=>void load()} className="rounded-lg border border-green-700 px-4 py-2 text-sm">Actualiser</button>
+  </div>
+  {loading?<p className="text-green-300">Chargement…</p>:(() => {
+    const active=events.filter(e=>e.status==="PUBLISHED");
+    const archived=events.filter(e=>e.status!=="PUBLISHED");
+    const card=(e:ClanEvent)=><article key={e.eventId} className="rounded-xl border border-green-800 bg-[#092317]/95 p-5">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div>
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full bg-amber-600/20 px-3 py-1 text-xs font-bold text-amber-300">{labels[e.type]}</span>
+            <span className="rounded-full border border-green-700 px-3 py-1 text-xs text-green-300">{e.status}</span>
+            <span className="rounded-full border border-green-700 px-3 py-1 text-xs text-green-400">{e.mode==="LONG"?"Mission longue":"Action"}</span>
+          </div>
+          <h3 className="mt-3 text-xl font-bold">{e.title}</h3>
+          <p className="mt-1 text-sm text-green-400">{new Date(e.startsAt).toLocaleString("fr-FR")} · {e.durationMinutes??"?"} min</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={()=>edit(e)} className="rounded-lg border border-green-700 px-4 py-2 text-sm">Modifier</button>
+          {e.status==="PUBLISHED"&&<><button onClick={()=>void status(e.eventId,"CANCELLED")} className="rounded-lg border border-red-800 px-4 py-2 text-sm text-red-300">Annuler</button><button onClick={()=>void status(e.eventId,"COMPLETED")} className="rounded-lg border border-amber-700 px-4 py-2 text-sm text-amber-300">Terminer</button></>}
+          {e.status==="CANCELLED"&&<button onClick={()=>void status(e.eventId,"PUBLISHED")} className="rounded-lg border border-green-700 px-4 py-2 text-sm text-green-300">Republier</button>}
+          <button onClick={()=>void remove(e.eventId)} className="rounded-lg border border-red-900 px-4 py-2 text-sm text-red-400">Supprimer</button>
+        </div>
+      </div>
+    </article>;
+    return <div className="space-y-10">
+      <section>
+        <div className="mb-4 flex items-center gap-3">
+          <h3 className="text-xl font-bold text-green-100">Événements actifs</h3>
+          <span className="rounded-full border border-green-700 px-2.5 py-1 text-xs text-green-300">{active.length}</span>
+        </div>
+        {active.length===0?<div className="rounded-xl border border-green-800 bg-[#092317]/60 p-6 text-green-400">Aucun événement actif.</div>:<div className="space-y-4">{active.map(card)}</div>}
+      </section>
+      <section>
+        <div className="mb-4 flex items-center gap-3">
+          <h3 className="text-xl font-bold text-green-100">Événements archivés</h3>
+          <span className="rounded-full border border-green-700 px-2.5 py-1 text-xs text-green-300">{archived.length}</span>
+        </div>
+        {archived.length===0?<div className="rounded-xl border border-green-800 bg-[#092317]/60 p-6 text-green-400">Aucun événement archivé.</div>:<div className="space-y-4">{archived.map(card)}</div>}
+      </section>
+    </div>;
+  })()}
+ </section>
+ </div></main>;
 }

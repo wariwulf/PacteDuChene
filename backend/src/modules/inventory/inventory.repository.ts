@@ -42,7 +42,7 @@ export class InventoryRepository {
         },
       },
       {
-        new: true,
+        returnDocument: "after",
         upsert: true,
       }
     ) as Promise<InventoryItemDocument>;
@@ -65,7 +65,7 @@ export class InventoryRepository {
         },
       },
       {
-        new: true,
+        returnDocument: "after",
       }
     );
   }

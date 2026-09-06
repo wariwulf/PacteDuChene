@@ -29,11 +29,25 @@ type QuestUpdateData = Partial<Omit<QuestWriteData, "questId" | "objectives">> &
 
 export class QuestsRepository {
   async findAll() {
-    return Quest.find().sort({ name: 1 });
+    return Quest.find({
+      deletedAt: null,
+    }).sort({ name: 1 });
   }
 
-  async findByQuestId(questId: string) {
-    return Quest.findOne({ questId });
+  async findDeleted() {
+    return Quest.find({
+      deletedAt: { $ne: null },
+    }).sort({ deletedAt: -1, name: 1 });
+  }
+
+  async findByQuestId(
+    questId: string,
+    includeDeleted = false
+  ) {
+    return Quest.findOne({
+      questId,
+      ...(includeDeleted ? {} : { deletedAt: null }),
+    });
   }
 
   async create(data: QuestWriteData) {
@@ -48,14 +62,44 @@ export class QuestsRepository {
       { questId },
       data,
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }
     );
   }
 
-  async delete(questId: string) {
-    return Quest.findOneAndDelete({ questId });
+  async softDelete(questId: string) {
+    return Quest.findOneAndUpdate(
+      {
+        questId,
+        deletedAt: null,
+      },
+      {
+        $set: {
+          deletedAt: new Date(),
+        },
+      },
+      {
+        returnDocument: "after",
+      }
+    );
+  }
+
+  async restore(questId: string) {
+    return Quest.findOneAndUpdate(
+      {
+        questId,
+        deletedAt: { $ne: null },
+      },
+      {
+        $set: {
+          deletedAt: null,
+        },
+      },
+      {
+        returnDocument: "after",
+      }
+    );
   }
 
   async findUserQuest(
@@ -102,7 +146,7 @@ export class QuestsRepository {
           completionProcessing: true,
         },
       },
-      { new: true }
+      { returnDocument: "after" }
     );
   }
 
@@ -124,7 +168,7 @@ export class QuestsRepository {
           completionProcessing: false,
         },
       },
-      { new: true }
+      { returnDocument: "after" }
     );
   }
 
@@ -144,14 +188,36 @@ export class QuestsRepository {
           completionProcessing: false,
         },
       },
-      { new: true }
+      { returnDocument: "after" }
     );
   }
 
-  async findUserQuests(userId: string) {
-    return UserQuest.find({ userId }).sort({
+  async findUserQuests(
+    userId: string,
+    includeDeleted = false
+  ) {
+    const userQuests = await UserQuest.find({ userId }).sort({
       startedAt: -1,
     });
+
+    if (includeDeleted || userQuests.length === 0) {
+      return userQuests;
+    }
+
+    const questIds = [...new Set(userQuests.map((userQuest) => userQuest.questId))];
+
+    const activeQuests = await Quest.find({
+      questId: { $in: questIds },
+      deletedAt: null,
+    }).select({ questId: 1 });
+
+    const activeQuestIds = new Set(
+      activeQuests.map((quest) => quest.questId)
+    );
+
+    return userQuests.filter((userQuest) =>
+      activeQuestIds.has(userQuest.questId)
+    );
   }
 
   async hasUserQuests(questId: string) {
@@ -243,7 +309,7 @@ export class QuestsRepository {
           reviewedAt: new Date(),
         },
       },
-      { new: true }
+      { returnDocument: "after" }
     );
   }
 
@@ -306,7 +372,7 @@ export class QuestsRepository {
         "objectives.objectiveId": objectiveId,
       },
       { $set: set },
-      { new: true }
+      { returnDocument: "after" }
     );
   }
 }

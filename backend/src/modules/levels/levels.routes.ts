@@ -10,6 +10,7 @@ import {
   removeXp,
   setXp,
   setLevel,
+  resetAllUserLevels,
 } from "./levels.controller";
 
 import { requireAuth } from "../../middleware/auth.middleware";
@@ -48,6 +49,17 @@ router.delete(
   requireAuth,
   requireRole("ADMIN", "OWNER"),
   deleteLevel
+);
+
+// =========================
+// REMISE À ZÉRO GLOBALE
+// =========================
+
+router.post(
+  "/admin/reset-all",
+  requireAuth,
+  requireRole("OWNER"),
+  resetAllUserLevels
 );
 
 // =========================

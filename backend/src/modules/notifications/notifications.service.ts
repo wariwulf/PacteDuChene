@@ -56,7 +56,7 @@ export class NotificationsService {
     return Notification.findOneAndUpdate(
       { _id: notificationId, recipientId: userId },
       { $set: { read: true, readAt: new Date() } },
-      { new: true }
+      { returnDocument: "after" }
     );
   }
 

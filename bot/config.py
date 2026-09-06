@@ -16,6 +16,8 @@ class Settings:
     role_dux_foederis: int
     role_rex_foederis: int
     economy_voice_poll_seconds: int
+    event_poll_seconds: int
+    pacte_site_url: str
 
 
 def load_settings() -> Settings:
@@ -25,6 +27,8 @@ def load_settings() -> Settings:
     api_url = os.getenv("PACTE_API_URL", "").strip().rstrip("/")
     api_key = os.getenv("PACTE_BOT_API_KEY", "").strip()
     voice_poll_raw = os.getenv("ECONOMY_VOICE_POLL_SECONDS", "60").strip()
+    event_poll_raw = os.getenv("EVENT_POLL_SECONDS", "5").strip()
+    site_url = os.getenv("PACTE_SITE_URL", "http://localhost:3000").strip().rstrip("/")
 
     role_values = {
         "DISCORD_ROLE_INITIE": os.getenv("DISCORD_ROLE_INITIE", "").strip(),
@@ -48,9 +52,12 @@ def load_settings() -> Settings:
         guild_id = int(guild_id_raw)
         role_ids = {name: int(value) for name, value in role_values.items()}
         economy_voice_poll_seconds = int(voice_poll_raw)
+        event_poll_seconds = int(event_poll_raw)
     except ValueError as error:
         raise RuntimeError("Les IDs Discord et ECONOMY_VOICE_POLL_SECONDS doivent être numériques.") from error
 
+    if event_poll_seconds < 5:
+        raise RuntimeError("EVENT_POLL_SECONDS doit être supérieur ou égal à 5 secondes.")
     if economy_voice_poll_seconds < 15:
         raise RuntimeError("ECONOMY_VOICE_POLL_SECONDS doit être supérieur ou égal à 15 secondes.")
     if len(set(role_ids.values())) != len(role_ids):
@@ -67,4 +74,6 @@ def load_settings() -> Settings:
         role_ids["DISCORD_ROLE_DUX_FOEDERIS"],
         role_ids["DISCORD_ROLE_REX_FOEDERIS"],
         economy_voice_poll_seconds,
+        event_poll_seconds,
+        site_url,
     )

@@ -25,7 +25,7 @@ export class PaxDeiRepository {
       id,
       data,
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }
     );

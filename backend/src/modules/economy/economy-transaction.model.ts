@@ -9,6 +9,7 @@ export type EconomyTransactionType =
   | "exchange"
   | "daily_reward"
   | "voice_reward"
+  | "event_reward"
   | "other";
 
 export interface EconomyTransactionDocument extends Document {
@@ -52,6 +53,7 @@ const economyTransactionSchema =
           "exchange",
           "daily_reward",
           "voice_reward",
+          "event_reward",
           "other",
         ],
       },
@@ -91,6 +93,7 @@ economyTransactionSchema.index(
           "quest_reward",
           "achievement_reward",
           "voice_reward",
+          "event_reward",
         ],
       },
       sourceId: {

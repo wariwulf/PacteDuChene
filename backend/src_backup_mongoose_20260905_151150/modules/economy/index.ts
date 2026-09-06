@@ -1,0 +1,1 @@
+export { default as economyRoutes } from "./economy.routes";

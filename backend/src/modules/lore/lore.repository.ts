@@ -8,7 +8,7 @@ export class LoreRepository {
   async findByLoreId(loreId: string) { return Lore.findOne({ loreId }); }
   async create(data: CreateLoreData) { return Lore.create(data); }
   async update(loreId: string, data: Partial<CreateLoreData>) {
-    return Lore.findOneAndUpdate({ loreId }, data, { new: true, runValidators: true });
+    return Lore.findOneAndUpdate({ loreId }, data, { returnDocument: "after", runValidators: true });
   }
   async delete(loreId: string) { return Lore.findOneAndDelete({ loreId }); }
 }

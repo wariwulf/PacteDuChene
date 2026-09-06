@@ -17,7 +17,7 @@ export class EconomyExchangeRepository {
       },
       {
         upsert: true,
-        new: true,
+        returnDocument: "after",
         setDefaultsOnInsert: true,
       }
     ).lean();
@@ -37,7 +37,7 @@ export class EconomyExchangeRepository {
       },
       {
         upsert: true,
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }
     ).lean();

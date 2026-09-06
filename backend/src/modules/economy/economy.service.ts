@@ -111,6 +111,7 @@ export class EconomyService {
       | "admin_remove"
       | "exchange"
       | "daily_reward"
+      | "event_reward"
       | "other";
     source?: string;
     sourceId?: string;
@@ -531,6 +532,33 @@ export class EconomyService {
       rewardedUsers,
       bronzeGranted,
     };
+  }
+
+  /**
+   * Récompense d'événement, idempotente par événement et récompense.
+   */
+  async addEventReward(
+    userId: string,
+    currencyId: string,
+    amount: number,
+    eventId: string,
+    rewardId: string,
+    description?: string
+  ): Promise<EconomyBalances> {
+    assertCurrency(currencyId);
+    if (!Number.isFinite(amount) || amount <= 0) throw new Error("Le montant doit être supérieur à 0.");
+    const source = "clan_event";
+    const sourceId = `${eventId}:${rewardId}`;
+    const existing = await this.economyRepository.findRewardTransaction(userId, "event_reward", source, sourceId, currencyId);
+    if (existing) return this.getBalances(userId);
+    const balances = await this.addBalance(userId, currencyId, amount);
+    try {
+      await this.addTransaction({ userId, currencyId, amount, type: "event_reward", source, sourceId, description });
+    } catch (error: any) {
+      if (error?.code === 11000) return this.getBalances(userId);
+      throw error;
+    }
+    return balances;
   }
 
   /**

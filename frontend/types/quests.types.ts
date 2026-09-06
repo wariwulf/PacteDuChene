@@ -38,6 +38,7 @@ export interface QuestDefinition {
   rewardAmount: number;
   rewardAchievementId?: string;
   enabled: boolean;
+  deletedAt?: string | Date | null;
 }
 
 export interface UserQuestObjective {

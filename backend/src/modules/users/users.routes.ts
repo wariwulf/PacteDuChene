@@ -51,15 +51,13 @@ router.patch(
   updateAdminMember
 );
 
-// Portrait d'un membre sélectionné dans l'administration.
-router.post(
-  "/avatar/:id",
-  ...adminAccess,
-  avatarUpload.single("avatar"),
-  uploadAvatar
-);
-
-// Portrait personnel du membre connecté.
+/**
+ * Portrait personnel du membre connecté.
+ *
+ * IMPORTANT :
+ * Cette route doit être déclarée avant /avatar/:id,
+ * sinon Express interprète "me" comme un identifiant de membre.
+ */
 router.post(
   "/avatar/me",
   requireAuth,
@@ -71,6 +69,14 @@ router.delete(
   "/avatar/me",
   requireAuth,
   deleteMyAvatar
+);
+
+// Portrait d'un membre sélectionné dans l'administration.
+router.post(
+  "/avatar/:id",
+  ...adminAccess,
+  avatarUpload.single("avatar"),
+  uploadAvatar
 );
 
 router.post(

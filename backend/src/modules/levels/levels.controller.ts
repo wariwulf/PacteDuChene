@@ -378,6 +378,37 @@ export async function setLevel(
 }
 
 // =========================================================
+// REMISE À ZÉRO GLOBALE
+// =========================================================
+
+export async function resetAllUserLevels(
+  _req: Request,
+  res: Response
+) {
+  try {
+    const resetCount =
+      await levelsService.resetAllUserLevels();
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        resetCount,
+      },
+      message:
+        "Les progressions des membres ont été remises à zéro.",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Impossible de remettre les progressions à zéro.",
+    });
+  }
+}
+
+// =========================================================
 // ADMINISTRATION DES PALIERS
 // =========================================================
 

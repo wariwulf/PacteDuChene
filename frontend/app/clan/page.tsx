@@ -7,14 +7,14 @@ import clanTreeBackground from "./clan-tree-background.png";
 import "./clan-tree.css";
 
 type ClanRole = "REX" | "DUX_FOEDERIS" | "FRERE_JURE" | "SOEUR_JUREE" | "INITIE";
-interface ClanNode { id:string; memberId:string; name:string; role:ClanRole; title?:string; portrait?:string|null; parentId?:string|null; displayOrder:number; active:boolean; }
+interface ClanNode { id:string; memberId:string; name:string; role:ClanRole; title?:string; portrait?:string|null; parentId?:string|null; displayOrder:number; active:boolean; level?:number; levelName?:string; xp?:number; }
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 const labels:Record<ClanRole,string> = { REX:"Rex", DUX_FOEDERIS:"Dux Foederis", FRERE_JURE:"Frère Juré", SOEUR_JUREE:"Sœur Jurée", INITIE:"Initié du Pacte" };
 
 function Card({ m, compact=false }:{m:ClanNode;compact?:boolean}) {
   return <Link href={`/membres/${m.memberId}`} className={`clan-member-card ${compact?"compact":""}`}>
     {m.portrait ? <img src={m.portrait} alt={`Portrait de ${m.name}`} className="portrait"/> : <div className="portrait placeholder">{m.name.charAt(0).toUpperCase()}</div>}
-    <div className="member-info"><span className="role">{labels[m.role]}</span><strong>{m.name}</strong>{m.title&&<span className="title">{m.title}</span>}</div>
+    <div className="member-info"><span className="role">{labels[m.role]}</span><strong>{m.name}</strong>{m.levelName&&<span className="level-badge">Niv. {m.level} · {m.levelName}</span>}{m.title&&<span className="title">{m.title}</span>}</div>
   </Link>;
 }
 

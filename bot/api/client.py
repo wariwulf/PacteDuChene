@@ -52,6 +52,29 @@ class PacteApiClient:
     ) -> dict[str, Any]:
         return await self._request("PUT", path, payload)
 
+    async def get_bytes(self, path: str) -> bytes:
+        """Télécharge une ressource binaire depuis le backend Pacte."""
+        await self.start()
+        assert self._session is not None
+        base = self._base_url.removesuffix("/api")
+        url = f"{base}{path}" if path.startswith("/") else path
+        try:
+            async with self._session.get(
+                url,
+                headers={
+                    "Authorization": f"Bearer {self._api_key}",
+                    "Accept": "image/*,application/octet-stream",
+                },
+            ) as response:
+                if response.status != 200:
+                    raise PacteApiError(
+                        f"Impossible de télécharger la ressource (HTTP {response.status}).",
+                        response.status,
+                    )
+                return await response.read()
+        except aiohttp.ClientError as error:
+            raise PacteApiError(f"Impossible de télécharger la ressource Pacte : {error}") from error
+
     async def _request(
         self,
         method: str,

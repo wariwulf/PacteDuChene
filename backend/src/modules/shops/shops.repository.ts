@@ -42,7 +42,7 @@ export class ShopsRepository {
         },
       },
       {
-        new: true,
+        returnDocument: "after",
       }
     );
   }
@@ -67,7 +67,7 @@ export class ShopsRepository {
         },
       },
       {
-        new: true,
+        returnDocument: "after",
       }
     );
   }
