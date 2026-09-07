@@ -336,7 +336,8 @@ export class LevelsService {
       sourceId &&
       (
         source === "QUEST" ||
-        source === "ACHIEVEMENT"
+        source === "ACHIEVEMENT" ||
+        source === "EVENT"
       )
     ) {
       const alreadyRewarded =

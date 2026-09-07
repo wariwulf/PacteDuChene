@@ -16,7 +16,7 @@ const objectiveSchema = new Schema({
 
 const rewardSchema = new Schema({
   rewardId: { type: String, required: true },
-  currencyId: { type: String, enum: ["solidus", "argent", "bronze"], required: true },
+  currencyId: { type: String, enum: ["solidus", "argent", "bronze", "xp"], required: true },
   amount: { type: Number, required: true, min: 0 },
   label: { type: String, default: "", maxlength: 200 },
 }, { _id: false });

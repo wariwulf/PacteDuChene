@@ -1,7 +1,8 @@
 export type LevelSource =
   | "QUEST"
   | "ACHIEVEMENT"
-  | "ADMIN";
+  | "ADMIN"
+  | "EVENT";
 
 export type LevelAction =
   | "XP_ADD"

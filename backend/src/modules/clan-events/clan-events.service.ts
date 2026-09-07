@@ -1,8 +1,10 @@
 import { clanEventsRepository } from "./clan-events.repository";
 import { EventParticipation } from "./clan-events.model";
 import { findByDiscordId, findByMemberId } from "../discord/discord.repository";
-import type { ClanEventData, ClanEventType, ParticipationStatus, RecurrenceData, EventRewardData } from "./clan-events.types";
+import type { ClanEventData, ClanEventType, ParticipationStatus, RecurrenceData, EventRewardData, CreateClanEventData } from "./clan-events.types";
 import { economyService } from "../economy/economy.service";
+import { levelsService } from "../levels/levels.service";
+import { randomBytes } from "node:crypto";
 
 const EVENT_TYPES: ClanEventType[] = ["COLLECTE","COMBAT","CEREMONIE","REUNION","SORTIE","AUTRE"];
 const PARTICIPATION_STATUSES: ParticipationStatus[] = ["ACCEPTED","MAYBE","DECLINED"];
@@ -22,11 +24,38 @@ export class ClanEventsService {
     return this.withMemberParticipation(event, memberId);
   }
 
-  async create(data: ClanEventData, createdBy: string) {
-    this.validateEvent(data);
-    if (await clanEventsRepository.findByEventId(data.eventId)) throw new Error("Un événement avec cet identifiant existe déjà.");
-    const normalized = this.normalizeEvent(data);
+  async create(data: CreateClanEventData, createdBy: string) {
+    const eventId = await this.generateEventId(data.title, data.eventId);
+    const completeData = { ...data, eventId } as ClanEventData;
+    this.validateEvent(completeData);
+    const normalized = this.normalizeEvent(completeData);
     return clanEventsRepository.create({ ...normalized, createdBy, publishedAt: undefined });
+  }
+
+  private async generateEventId(title: string, requestedId?: string) {
+    const explicit = String(requestedId ?? "").trim();
+    if (explicit) {
+      if (await clanEventsRepository.findByEventId(explicit)) {
+        throw new Error("Un événement avec cet identifiant existe déjà.");
+      }
+      return explicit;
+    }
+
+    const base = String(title ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60) || "evenement";
+
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const suffix = `${Date.now().toString(36)}-${randomBytes(3).toString("hex")}`;
+      const candidate = `${base}-${suffix}`;
+      if (!(await clanEventsRepository.findByEventId(candidate))) return candidate;
+    }
+
+    throw new Error("Impossible de générer un identifiant unique pour l'événement.");
   }
 
   async update(eventId: string, data: Partial<ClanEventData>) {
@@ -187,16 +216,46 @@ export class ClanEventsService {
   async grantRewards(eventId: string) {
     const event = await clanEventsRepository.findByEventId(eventId);
     if (!event) throw new Error("Événement introuvable.");
-    const participants = await EventParticipation.find({ eventId, status: "ACCEPTED" });
+
+    const participants = await EventParticipation.find({
+      eventId,
+      status: "ACCEPTED",
+    });
+
     const rewards = event.rewards ?? [];
     const granted: Array<{ memberId: string; reward: EventRewardData }> = [];
+
     for (const participant of participants) {
       for (const reward of rewards) {
         if (reward.amount <= 0) continue;
-        await economyService.addEventReward(participant.memberId, reward.currencyId, reward.amount, eventId, reward.rewardId, reward.label || `Récompense de l'événement « ${event.title} »`);
+
+        const description =
+          reward.label ||
+          `Récompense de l'événement « ${event.title} »`;
+
+        if (reward.currencyId === "xp") {
+          await levelsService.addXp(
+            participant.memberId,
+            reward.amount,
+            "EVENT",
+            description,
+            `${eventId}:${reward.rewardId}`,
+          );
+        } else {
+          await economyService.addEventReward(
+            participant.memberId,
+            reward.currencyId,
+            reward.amount,
+            eventId,
+            reward.rewardId,
+            description,
+          );
+        }
+
         granted.push({ memberId: participant.memberId, reward });
       }
     }
+
     return granted;
   }
 

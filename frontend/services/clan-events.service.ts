@@ -5,7 +5,7 @@ export type ClanEventMode = "INSTANT" | "LONG";
 export type ClanEventStatus = "PUBLISHED" | "CANCELLED" | "COMPLETED" | "ARCHIVED";
 export type ParticipationStatus = "ACCEPTED" | "MAYBE" | "DECLINED";
 export type RecurrenceFrequency = "DAILY" | "WEEKLY" | "MONTHLY";
-export type CurrencyId = "solidus" | "argent" | "bronze";
+export type CurrencyId = "solidus" | "argent" | "bronze" | "xp";
 
 export interface EventObjective { objectiveId: string; title: string; description?: string; required: boolean; }
 export interface EventReward { rewardId: string; currencyId: CurrencyId; amount: number; label?: string; }

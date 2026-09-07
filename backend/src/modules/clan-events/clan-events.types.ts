@@ -15,7 +15,7 @@ export interface EventObjectiveData {
 
 export interface EventRewardData {
   rewardId: string;
-  currencyId: "solidus" | "argent" | "bronze";
+  currencyId: "solidus" | "argent" | "bronze" | "xp";
   amount: number;
   label?: string;
 }
@@ -76,6 +76,10 @@ export interface ClanEventData extends ClanEventInput {
   updatedAt?: Date;
   discordSyncAt?: Date;
 }
+
+export type CreateClanEventData = Omit<ClanEventData, "eventId"> & {
+  eventId?: string;
+};
 
 export interface ParticipationData {
   eventId: string;

@@ -3,6 +3,7 @@ export interface LoreDocument {
   title: string;
   category: string;
   summary?: string;
+  imageUrl?: string;
   content: string;
   enabled: boolean;
   order: number;
@@ -13,6 +14,7 @@ export interface CreateLoreData {
   title: string;
   category: string;
   summary?: string;
+  imageUrl?: string;
   content: string;
   enabled?: boolean;
   order?: number;

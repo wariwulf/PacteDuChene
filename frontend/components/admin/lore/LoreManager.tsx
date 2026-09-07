@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { LORE_CATEGORIES } from "@/components/lore/LoreIcons";
 import type { LoreEntry } from "@/components/lore/LoreLibraryTypes";
@@ -12,6 +12,7 @@ type FormState = {
   title: string;
   category: string;
   summary: string;
+  imageUrl: string;
   content: string;
   enabled: boolean;
   order: number;
@@ -21,6 +22,7 @@ const emptyForm: FormState = {
   title: "",
   category: "Histoire",
   summary: "",
+  imageUrl: "",
   content: "",
   enabled: true,
   order: 0,
@@ -31,7 +33,7 @@ async function apiRequest(path: string, options: RequestInit = {}) {
     credentials: "include",
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
       ...(options.headers || {}),
     },
   });
@@ -57,6 +59,8 @@ export default function LoreManager() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState("");
 
   async function loadLore() {
     try {
@@ -102,12 +106,15 @@ export default function LoreManager() {
       title: entry.title,
       category: entry.category,
       summary: entry.summary || "",
+      imageUrl: entry.imageUrl || "",
       content: entry.content,
       enabled: entry.enabled,
       order: entry.order,
     });
     setMessage("");
     setError("");
+    setImageFile(null);
+    setImagePreview(entry.imageUrl || "");
   }
 
   function newEntry() {
@@ -115,6 +122,30 @@ export default function LoreManager() {
     setForm(emptyForm);
     setMessage("");
     setError("");
+    setImageFile(null);
+    setImagePreview("");
+  }
+
+  async function uploadImage(file: File) {
+    const formData = new FormData();
+    formData.append("image", file);
+    const payload = await apiRequest("/lore/upload-image", {
+      method: "POST",
+      body: formData,
+    });
+    const imageUrl = String(payload?.data?.imageUrl || "");
+    if (!imageUrl) throw new Error("Le serveur n’a pas retourné l’adresse de l’image.");
+    return imageUrl;
+  }
+
+  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    setImageFile(file);
+    if (file) {
+      setImagePreview(URL.createObjectURL(file));
+    } else {
+      setImagePreview(form.imageUrl);
+    }
   }
 
   async function save(event: FormEvent) {
@@ -130,10 +161,16 @@ export default function LoreManager() {
       setError("");
       setMessage("");
 
+      let imageUrl = form.imageUrl || "";
+      if (imageFile) {
+        imageUrl = await uploadImage(imageFile);
+      }
+
       const body = {
         title: form.title.trim(),
         category: form.category,
         summary: form.summary.trim() || undefined,
+        imageUrl: imageUrl || null,
         content: form.content,
         enabled: form.enabled,
         order: Number(form.order) || 0,
@@ -158,9 +195,16 @@ export default function LoreManager() {
           return [...without, saved];
         });
         setSelected(saved);
+        setForm((current) => ({ ...current, imageUrl: saved.imageUrl || "" }));
+        setImageFile(null);
+        setImagePreview(saved.imageUrl || "");
       }
 
-      if (!selected) setForm(emptyForm);
+      if (!selected) {
+        setForm(emptyForm);
+        setImageFile(null);
+        setImagePreview("");
+      }
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Impossible d'enregistrer la chronique."
@@ -401,6 +445,38 @@ export default function LoreManager() {
                   className="admin-input resize-y"
                   placeholder="Quelques lignes visibles dans la bibliothèque..."
                 />
+              </Field>
+
+              <Field label="Image de la chronique">
+                <div className="space-y-3 rounded-lg border border-[#263b2c] bg-[#08130d] p-4">
+                  {imagePreview && (
+                    <div className="overflow-hidden rounded-lg border border-[#5a4a27] bg-black/20">
+                      <img
+                        src={imagePreview}
+                        alt="Aperçu de la chronique"
+                        className="max-h-56 w-full object-contain"
+                      />
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,image/gif"
+                    onChange={handleImageChange}
+                    className="block w-full text-sm text-[#aabdac] file:mr-4 file:rounded-md file:border-0 file:bg-[#b48735] file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-[#c59a4d]"
+                  />
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-[#7f947f]">
+                    <span>JPG, PNG, WEBP ou GIF · 10 Mo maximum.</span>
+                    {imagePreview && (
+                      <button
+                        type="button"
+                        onClick={() => { setImageFile(null); setImagePreview(""); setForm((current) => ({ ...current, imageUrl: "" })); }}
+                        className="font-semibold text-[#d4b66d] hover:text-white"
+                      >
+                        Retirer l’image
+                      </button>
+                    )}
+                  </div>
+                </div>
               </Field>
 
               <Field label="Contenu *">

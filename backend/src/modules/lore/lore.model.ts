@@ -6,6 +6,7 @@ const loreSchema = new Schema<LoreDocument>({
   title: { type: String, required: true, trim: true },
   category: { type: String, required: true, trim: true },
   summary: { type: String, trim: true },
+  imageUrl: { type: String, trim: true },
   content: { type: String, required: true },
   enabled: { type: Boolean, default: true },
   order: { type: Number, default: 0 },

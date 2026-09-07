@@ -149,7 +149,7 @@ export class LevelsRepository {
 
   async hasRewardHistory(
     userId: string,
-    source: "QUEST" | "ACHIEVEMENT",
+    source: "QUEST" | "ACHIEVEMENT" | "EVENT",
     sourceId: string
   ): Promise<boolean> {
     const userLevel =

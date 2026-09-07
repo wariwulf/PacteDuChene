@@ -3,63 +3,42 @@
 import { useEffect, useRef, useState } from "react";
 import styles from "./AmbientMusic.module.css";
 
-export default function AmbientMusic() {
+interface AmbientMusicProps {
+  src?: string;
+}
+
+export default function AmbientMusic({
+  src = "/audio/pacte-accueil.mp3",
+}: AmbientMusicProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
-    const audio = audioRef.current;
+  const audio = audioRef.current;
 
-    if (!audio) return;
+  if (!audio) return;
 
-    audio.volume = 0.25;
-    audio.loop = true;
+  audio.volume = 0.25;
+  audio.loop = true;
 
-    const onPlay = () => setIsPlaying(true);
-    const onPause = () => setIsPlaying(false);
+  const onPlay = () => setIsPlaying(true);
+  const onPause = () => setIsPlaying(false);
 
-    audio.addEventListener("play", onPlay);
-    audio.addEventListener("pause", onPause);
+  audio.addEventListener("play", onPlay);
+  audio.addEventListener("pause", onPause);
 
-    let unlocked = false;
+  // Tentative de lecture automatique
+  audio.play().catch(() => {
+    // Le navigateur bloque l'autoplay.
+    // L'utilisateur pourra alors utiliser le bouton.
+    console.log("Autoplay bloqué par le navigateur.");
+  });
 
-    const startFromInteraction = () => {
-      if (unlocked || !audio.paused) return;
-
-      unlocked = true;
-
-      void audio.play().catch((error) => {
-        console.error("Impossible de lancer la musique :", error);
-      });
-
-      window.removeEventListener("pointerdown", startFromInteraction);
-      window.removeEventListener("keydown", startFromInteraction);
-      window.removeEventListener("touchstart", startFromInteraction);
-    };
-
-    // Première tentative : si le navigateur autorise l'autoplay,
-    // la musique démarre immédiatement.
-    void audio.play().catch(() => {
-      // Autoplay bloqué : on attend la première interaction de l'utilisateur.
-      window.addEventListener("pointerdown", startFromInteraction, {
-        once: true,
-      });
-      window.addEventListener("keydown", startFromInteraction, {
-        once: true,
-      });
-      window.addEventListener("touchstart", startFromInteraction, {
-        once: true,
-      });
-    });
-
-    return () => {
-      audio.removeEventListener("play", onPlay);
-      audio.removeEventListener("pause", onPause);
-      window.removeEventListener("pointerdown", startFromInteraction);
-      window.removeEventListener("keydown", startFromInteraction);
-      window.removeEventListener("touchstart", startFromInteraction);
-    };
-  }, []);
+  return () => {
+    audio.removeEventListener("play", onPlay);
+    audio.removeEventListener("pause", onPause);
+  };
+}, []);
 
   const toggleMusic = async () => {
     const audio = audioRef.current;
@@ -81,7 +60,7 @@ export default function AmbientMusic() {
     <>
       <audio
         ref={audioRef}
-        src="/audio/pacte-accueil.mp3"
+        src={src}
         preload="auto"
       />
 

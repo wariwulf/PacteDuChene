@@ -53,17 +53,16 @@ export function KnotIcon({ className = "" }: Props) {
 }
 
 export const LORE_CATEGORIES = [
-  { id: "Histoire", label: "Histoire", icon: OakIcon, accent: "green" },
-  { id: "Traditions", label: "Traditions", icon: BirdIcon, accent: "red" },
-  { id: "Institutions", label: "Institutions", icon: ChurchIcon, accent: "blue" },
-  { id: "Personnages", label: "Personnages", icon: CrownIcon, accent: "purple" },
-  { id: "Chroniques", label: "Chroniques", icon: QuillIcon, accent: "brown" },
-  { id: "Territoires", label: "Territoires", icon: MapIcon, accent: "teal" },
-  { id: "Autre", label: "Autre", icon: KnotIcon, accent: "slate" },
+  { id: "Histoire", label: "Histoire", icon: OakIcon, accent: "green", bookImage: "/images/lore/books/histoire.png" },
+  { id: "Traditions", label: "Traditions", icon: BirdIcon, accent: "red", bookImage: "/images/lore/books/traditions.png" },
+  { id: "Institutions", label: "Institutions", icon: ChurchIcon, accent: "blue", bookImage: "/images/lore/books/institutions.png" },
+  { id: "Personnages", label: "Personnages", icon: CrownIcon, accent: "purple", bookImage: "/images/lore/books/personnages.png" },
+  { id: "Chroniques", label: "Chroniques", icon: QuillIcon, accent: "brown", bookImage: "/images/lore/books/chroniques.png" },
+  { id: "Territoires", label: "Territoires", icon: MapIcon, accent: "teal", bookImage: "/images/lore/books/territoires.png" },
 ] as const;
 
 export function getCategory(category: string) {
   return LORE_CATEGORIES.find(
     (item) => item.id.toLowerCase() === category.toLowerCase()
-  ) ?? LORE_CATEGORIES[6];
+  ) ?? LORE_CATEGORIES[0];
 }

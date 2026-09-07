@@ -1,4 +1,16 @@
 import { Request, Response } from "express";
+
+export async function uploadLoreImage(req: Request, res: Response) {
+  const file = (req as Request & { file?: { filename: string } }).file;
+  if (!file) {
+    return res.status(400).json({ success: false, message: "Aucune image reçue." });
+  }
+
+  const publicBaseUrl = process.env.PUBLIC_API_URL || `${req.protocol}://${req.get("host")}`;
+  const imageUrl = `${publicBaseUrl.replace(/\/$/, "")}/uploads/lore/${file.filename}`;
+  return res.status(201).json({ success: true, data: { imageUrl } });
+}
+
 import { loreService } from "./lore.service";
 
 export async function getLore(req: Request, res: Response) {

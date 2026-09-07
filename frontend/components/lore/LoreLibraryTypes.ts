@@ -3,6 +3,7 @@ export interface LoreEntry {
   title: string;
   category: string;
   summary?: string;
+  imageUrl?: string;
   content: string;
   enabled: boolean;
   order: number;
