@@ -3,8 +3,6 @@ import type { MetadataRoute } from "next";
 const siteUrl = "https://lepacteduchene.fr";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const now = new Date();
-
   const routes = [
     "/",
     "/clan",
@@ -15,12 +13,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/paxdei",
     "/discord",
     "/contact",
-    "/inventaire",
   ];
 
   return routes.map((path) => ({
     url: `${siteUrl}${path}`,
-    lastModified: now,
     changeFrequency: path === "/" ? "weekly" : "daily",
     priority:
       path === "/"

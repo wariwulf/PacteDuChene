@@ -1,6 +1,6 @@
 import { News, type NewsDocument } from "./news.model";
-import { Schema } from "mongoose";
 import { Types } from "mongoose";
+
 import type {
   CreateNewsInput,
   UpdateNewsInput,
@@ -26,6 +26,16 @@ export async function findNewsBySlug(
   }).lean();
 }
 
+export async function slugExists(
+  slug: string
+): Promise<boolean> {
+  const article = await News.exists({
+    slug,
+  });
+
+  return Boolean(article);
+}
+
 export async function createNews(
   data: CreateNewsInput & {
     slug: string;
@@ -43,7 +53,7 @@ export async function updateNews(
     id,
     data,
     {
-      returnDocument: "after",
+      new: true,
       runValidators: true,
     }
   );

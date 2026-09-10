@@ -9,6 +9,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: [
           "/administration/",
           "/espace-membre/",
+          "/inventaire/",
           "/connexion/",
           "/login/",
           "/auth-test/",

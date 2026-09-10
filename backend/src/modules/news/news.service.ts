@@ -4,6 +4,7 @@ import {
   createNews,
   findNewsBySlug,
   findPublishedNews,
+  slugExists,
   updateNews,
 } from "./news.repository";
 
@@ -11,7 +12,6 @@ import type {
   CreateNewsInput,
   UpdateNewsInput,
 } from "./news.types";
-
 
 function createSlug(title: string): string {
   return title
@@ -21,6 +21,20 @@ function createSlug(title: string): string {
     .trim()
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+async function createUniqueSlug(title: string): Promise<string> {
+  const baseSlug = createSlug(title);
+
+  let slug = baseSlug;
+  let suffix = 2;
+
+  while (await slugExists(slug)) {
+    slug = `${baseSlug}-${suffix}`;
+    suffix += 1;
+  }
+
+  return slug;
 }
 
 export async function getPublishedNews() {
@@ -37,7 +51,7 @@ export async function createNewsArticle(
   input: CreateNewsInput,
   authorId: string
 ) {
-  const slug = createSlug(input.title);
+  const slug = await createUniqueSlug(input.title);
 
   return createNews({
     ...input,
