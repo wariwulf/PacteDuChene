@@ -2,16 +2,14 @@ import type { Metadata } from "next";
 import NewsAmbientMusic from "@/components/NewsAmbientMusic";
 
 export const metadata: Metadata = {
-  title: "Actualités — Le Pacte du Chêne",
+  title: "Actualités Pax Dei",
   description:
-    "Actualités, annonces et nouvelles de la communauté francophone du Pacte du Chêne sur Pax Dei.",
-  alternates: {
-    canonical: "/news",
-  },
+    "Retrouvez les actualités du Pacte du Chêne, les nouvelles de notre communauté et nos publications autour de Pax Dei.",
+  alternates: { canonical: "/news" },
   openGraph: {
-    title: "Actualités — Le Pacte du Chêne",
+    title: "Actualités Pax Dei — Le Pacte du Chêne",
     description:
-      "Actualités, annonces et nouvelles de la communauté francophone du Pacte du Chêne sur Pax Dei.",
+      "Retrouvez les actualités du Pacte du Chêne, les nouvelles de notre communauté et nos publications autour de Pax Dei.",
     url: "/news",
     type: "website",
   },
@@ -19,13 +17,11 @@ export const metadata: Metadata = {
 
 export default function NewsLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <>
-      <NewsAmbientMusic />
       {children}
+      <NewsAmbientMusic />
     </>
   );
 }

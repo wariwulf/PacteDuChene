@@ -20,6 +20,8 @@ export interface QuestStep {
   name: string;
   description?: string;
   imageUrl?: string;
+  /** Si true, l'étape précédente doit être terminée avant celle-ci. */
+  requiresPreviousStep?: boolean;
   difficulty: number;
   objectives: QuestObjective[];
 }

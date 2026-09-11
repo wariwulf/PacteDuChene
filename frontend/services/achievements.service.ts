@@ -64,6 +64,7 @@ export interface AchievementPayload {
   level: AchievementLevel;
   rewardCurrencyId?: string;
   rewardAmount: number;
+  rewardXp: number;
   enabled: boolean;
 }
 

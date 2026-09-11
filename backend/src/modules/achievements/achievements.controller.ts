@@ -61,6 +61,7 @@ export async function createAchievement(req: Request, res: Response) {
       level,
       rewardCurrencyId,
       rewardAmount,
+      rewardXp,
       enabled,
     } = req.body;
 
@@ -90,6 +91,20 @@ export async function createAchievement(req: Request, res: Response) {
       });
     }
 
+    if (
+      rewardXp !== undefined &&
+      (
+        typeof rewardXp !== "number" ||
+        !Number.isFinite(rewardXp) ||
+        rewardXp < 0
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "La récompense XP doit être un nombre supérieur ou égal à zéro.",
+      });
+    }
+
     const achievement = await achievementsService.createAchievement({
       achievementId: String(achievementId).trim(),
       name: String(name).trim(),
@@ -99,6 +114,7 @@ export async function createAchievement(req: Request, res: Response) {
         ? String(rewardCurrencyId).trim()
         : undefined,
       rewardAmount: rewardAmount ?? 0,
+      rewardXp: rewardXp ?? 0,
       enabled: enabled ?? true,
     });
 
@@ -134,6 +150,7 @@ export async function updateAchievement(req: Request, res: Response) {
       level,
       rewardCurrencyId,
       rewardAmount,
+      rewardXp,
       enabled,
     } = req.body;
 
@@ -146,6 +163,20 @@ export async function updateAchievement(req: Request, res: Response) {
       return res.status(400).json({
         success: false,
         message: "Le niveau de l'exploit doit être 1, 2 ou 3.",
+      });
+    }
+
+    if (
+      rewardXp !== undefined &&
+      (
+        typeof rewardXp !== "number" ||
+        !Number.isFinite(rewardXp) ||
+        rewardXp < 0
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "La récompense XP doit être un nombre supérieur ou égal à zéro.",
       });
     }
 
@@ -166,6 +197,10 @@ export async function updateAchievement(req: Request, res: Response) {
           rewardAmount === undefined
             ? undefined
             : Number(rewardAmount),
+        rewardXp:
+          rewardXp === undefined
+            ? undefined
+            : Number(rewardXp),
         enabled:
           enabled === undefined
             ? undefined

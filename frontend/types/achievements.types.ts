@@ -8,6 +8,7 @@ export interface Achievement {
   level: AchievementLevel;
   rewardCurrencyId?: string;
   rewardAmount: number;
+  rewardXp: number;
   enabled: boolean;
   linkedQuestId?: string;
   linkedQuestName?: string;
@@ -49,6 +50,7 @@ export interface FeaturedUserAchievement {
   level: AchievementLevel;
   rewardCurrencyId?: string;
   rewardAmount: number;
+  rewardXp: number;
   unlockedAt: string;
   featuredOrder: number;
 }

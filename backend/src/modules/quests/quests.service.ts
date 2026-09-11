@@ -66,6 +66,95 @@ export class QuestsService {
     return this.questsRepository.findDeleted();
   }
 
+  async updateQuestImage(questId: string, imageUrl: string) {
+    const quest = await this.questsRepository.updateQuestImage(questId, imageUrl);
+
+    if (!quest) {
+      throw new Error("Quête introuvable.");
+    }
+
+    return quest;
+  }
+
+  async updateQuestStepImage(
+    questId: string,
+    stepId: string,
+    imageUrl: string
+  ) {
+    const quest = await this.questsRepository.updateStepImage(
+      questId,
+      stepId,
+      imageUrl
+    );
+
+    if (!quest) {
+      throw new Error("Quête ou étape introuvable.");
+    }
+
+    return quest;
+  }
+
+  // =========================================================
+  // ÉTAPES
+  // =========================================================
+
+  /**
+   * Une étape historique qui ne possède pas encore le champ
+   * requiresPreviousStep est considérée comme dépendante de la précédente.
+   * Cela permet de conserver le comportement attendu pour les quêtes déjà
+   * créées avant l'ajout de cette fonctionnalité.
+   */
+  private stepRequiresPrevious(step: { requiresPreviousStep?: boolean }) {
+    return step.requiresPreviousStep !== false;
+  }
+
+  private isStepCompleted(
+    step: { objectives: { objectiveId: string; target: number; requiresProof?: boolean }[] },
+    userQuest: { objectives: { objectiveId: string; current: number; validationStatus?: string }[] }
+  ) {
+    return step.objectives.length > 0 && step.objectives.every((objective) => {
+      const progress = userQuest.objectives.find(
+        (item) => item.objectiveId === objective.objectiveId
+      );
+
+      if (!progress || progress.current < objective.target) {
+        return false;
+      }
+
+      return objective.requiresProof !== true || progress.validationStatus === "approved";
+    });
+  }
+
+  private isStepUnlocked(
+    quest: { steps?: { requiresPreviousStep?: boolean; objectives: { objectiveId: string; target: number; requiresProof?: boolean }[] }[] },
+    userQuest: { objectives: { objectiveId: string; current: number; validationStatus?: string }[] },
+    stepIndex: number
+  ) {
+    if (stepIndex <= 0) return true;
+
+    const step = quest.steps?.[stepIndex];
+    if (!step || !this.stepRequiresPrevious(step)) return true;
+
+    const previousStep = quest.steps?.[stepIndex - 1];
+    return previousStep ? this.isStepCompleted(previousStep, userQuest) : true;
+  }
+
+  private isObjectiveUnlocked(
+    quest: { steps?: { stepId: string; requiresPreviousStep?: boolean; objectives: { objectiveId: string; target: number; requiresProof?: boolean }[] }[] },
+    userQuest: { objectives: { objectiveId: string; current: number; validationStatus?: string }[] },
+    objectiveId: string
+  ) {
+    const stepIndex = (quest.steps ?? []).findIndex((step) =>
+      step.objectives.some((objective) => objective.objectiveId === objectiveId)
+    );
+
+    // Objectifs d'anciennes quêtes non regroupés dans steps : aucun verrou
+    // supplémentaire n'est appliqué.
+    if (stepIndex < 0) return true;
+
+    return this.isStepUnlocked(quest, userQuest, stepIndex);
+  }
+
   // =========================================================
   // CRÉATION
   // =========================================================
@@ -85,6 +174,8 @@ export class QuestsService {
       description?: string;
       imageUrl?: string;
       difficulty: number;
+      /** Par défaut, une étape (hors première) dépend de la précédente. */
+      requiresPreviousStep?: boolean;
       objectives: {
         objectiveId: string;
         name: string;
@@ -208,6 +299,15 @@ export class QuestsService {
           throw new Error(`L'identifiant d'étape "${step.stepId}" est dupliqué.`);
         }
         stepIds.add(step.stepId);
+
+        if (
+          step.requiresPreviousStep !== undefined &&
+          typeof step.requiresPreviousStep !== "boolean"
+        ) {
+          throw new Error(
+            `La dépendance de l'étape "${step.name}" doit être booléenne.`
+          );
+        }
 
         if (
           !Number.isInteger(step.difficulty) ||
@@ -377,6 +477,8 @@ export class QuestsService {
         description?: string;
         imageUrl?: string;
         difficulty: number;
+        /** Par défaut, une étape (hors première) dépend de la précédente. */
+        requiresPreviousStep?: boolean;
         objectives: {
           objectiveId: string;
           name: string;
@@ -522,6 +624,15 @@ export class QuestsService {
         stepIds.add(step.stepId);
 
         if (
+          step.requiresPreviousStep !== undefined &&
+          typeof step.requiresPreviousStep !== "boolean"
+        ) {
+          throw new Error(
+            `La dépendance de l'étape "${step.name}" doit être booléenne.`
+          );
+        }
+
+        if (
           !Number.isInteger(step.difficulty) ||
           step.difficulty < 1 ||
           step.difficulty > 5
@@ -650,7 +761,8 @@ export class QuestsService {
         userId,
         questId,
         objective.objectiveId,
-        objective.target
+        objective.target,
+        true
       );
     }
 
@@ -840,7 +952,8 @@ export class QuestsService {
     userId: string,
     questId: string,
     objectiveId: string,
-    amount: number
+    amount: number,
+    ignoreStepLocks = false
   ) {
     if (
       typeof amount !== "number" ||
@@ -906,6 +1019,12 @@ export class QuestsService {
     if (!userObjective) {
       throw new Error(
         "Progression de l'objectif introuvable."
+      );
+    }
+
+    if (!ignoreStepLocks && !this.isObjectiveUnlocked(quest, userQuest, objectiveId)) {
+      throw new Error(
+        "Cet objectif est verrouillé. Terminez d'abord l'étape précédente."
       );
     }
 
@@ -1141,6 +1260,12 @@ export class QuestsService {
     if (!userObjective) {
       throw new Error(
         "Progression de l'objectif introuvable."
+      );
+    }
+
+    if (!this.isObjectiveUnlocked(quest, userQuest, objectiveId)) {
+      throw new Error(
+        "Cet objectif est verrouillé. Terminez d'abord l'étape précédente."
       );
     }
 

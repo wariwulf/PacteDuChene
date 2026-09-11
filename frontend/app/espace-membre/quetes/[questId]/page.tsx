@@ -182,6 +182,34 @@ export default function QueteDetailPage() {
       ? "Terminée"
       : "En cours";
 
+  function isStepCompleted(step: (typeof steps)[number]) {
+    if (!userQuest || step.objectives.length === 0) return false;
+
+    return step.objectives.every((objective) => {
+      const objectiveProgress = progress.get(objective.objectiveId) ?? 0;
+      if (objectiveProgress < objective.target) return false;
+
+      if (objective.requiresProof === true) {
+        const userObjective = userQuest.objectives.find(
+          (item) => item.objectiveId === objective.objectiveId
+        );
+        return userObjective?.validationStatus === "approved";
+      }
+
+      return true;
+    });
+  }
+
+  function isStepUnlocked(index: number) {
+    if (index === 0) return true;
+    const step = steps[index];
+    if (step.requiresPreviousStep === false) return true;
+    return isStepCompleted(steps[index - 1]);
+  }
+
+  const allStepsCompleted =
+    Boolean(userQuest) && steps.every((step) => isStepCompleted(step));
+
   return (
     <main
       className="relative min-h-screen overflow-hidden bg-[#07150f] text-white"
@@ -270,97 +298,132 @@ export default function QueteDetailPage() {
           </div>
 
           <div className="space-y-6">
-            {steps.map((step, index) => (
-              <article
-                key={step.stepId}
-                className="overflow-hidden rounded-2xl border border-white/10 bg-[#062015]/95 shadow-2xl"
-              >
-                <div className="p-7">
-                  <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-                    <div>
-                      <p className="text-xs uppercase tracking-[0.2em] text-amber-500">
-                        Étape {index + 1}
-                      </p>
-                      <h3 className="mt-1 text-2xl font-bold">{step.name}</h3>
+            {steps.map((step, index) => {
+              const unlocked = isStepUnlocked(index);
+              const completed = unlocked && isStepCompleted(step);
+
+              return (
+                <article
+                  key={step.stepId}
+                  className={`overflow-hidden rounded-2xl border shadow-2xl ${
+                    unlocked
+                      ? "border-white/10 bg-[#062015]/95"
+                      : "border-white/5 bg-black/30"
+                  }`}
+                >
+                  <div className="p-7">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                      <div>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <p className="text-xs uppercase tracking-[0.2em] text-amber-500">
+                            Étape {index + 1}
+                          </p>
+                          {completed && (
+                            <span className="rounded-full border border-green-400/20 bg-green-900/20 px-2.5 py-1 text-[11px] font-semibold text-green-300">
+                              Terminée
+                            </span>
+                          )}
+                          {!unlocked && (
+                            <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] font-semibold text-gray-400">
+                              🔒 Verrouillée
+                            </span>
+                          )}
+                        </div>
+                        <h3 className={`mt-1 text-2xl font-bold ${unlocked ? "text-white" : "text-gray-500"}`}>
+                          {unlocked ? step.name : "Étape verrouillée"}
+                        </h3>
+                      </div>
+
+                      {unlocked && <QuestDifficulty value={step.difficulty} />}
                     </div>
 
-                    <QuestDifficulty value={step.difficulty} />
-                  </div>
-
-                  {step.description && (
-                    <p className="mt-4 leading-7 text-gray-300">
-                      {step.description}
-                    </p>
-                  )}
-                </div>
-
-                {step.imageUrl && (
-                  <img
-                    src={step.imageUrl}
-                    alt=""
-                    className="max-h-80 w-full object-cover"
-                  />
-                )}
-
-                <div className="space-y-3 p-7 pt-0">
-                  {step.objectives.map((objective) => {
-                    const current = progress.get(objective.objectiveId) ?? 0;
-                    const target = Math.max(1, objective.target);
-                    const percent = Math.min(
-                      100,
-                      Math.round((current / target) * 100)
-                    );
-                    const completed = current >= target;
-
-                    return (
-                      <div
-                        key={objective.objectiveId}
-                        className="rounded-xl border border-white/10 bg-black/20 p-5"
-                      >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                          <div>
-                            <h4 className="font-semibold text-white">
-                              {objective.name}
-                            </h4>
-
-                            {objective.description && (
-                              <p className="mt-1 text-sm text-gray-400">
-                                {objective.description}
-                              </p>
-                            )}
-                          </div>
-
-                          <span
-                            className={`shrink-0 font-semibold ${
-                              completed
-                                ? "text-green-400"
-                                : "text-gray-200"
-                            }`}
-                          >
-                            {current}/{objective.target}
-                          </span>
-                        </div>
-
-                        <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
-                          <div
-                            className={`h-full rounded-full transition-all ${
-                              completed
-                                ? "bg-green-500"
-                                : "bg-amber-500"
-                            }`}
-                            style={{ width: `${percent}%` }}
-                          />
-                        </div>
-
-                        <p className="mt-2 text-xs text-gray-500">
-                          {percent}% accompli
+                    {!unlocked ? (
+                      <div className="mt-5 rounded-xl border border-amber-500/10 bg-amber-500/5 p-5">
+                        <p className="font-semibold text-amber-200">
+                          Cette étape n'est pas encore accessible.
+                        </p>
+                        <p className="mt-1 text-sm text-gray-400">
+                          Terminez l'étape {index} pour poursuivre la quête.
                         </p>
                       </div>
-                    );
-                  })}
-                </div>
-              </article>
-            ))}
+                    ) : (
+                      <>
+                        {step.description && (
+                          <p className="mt-4 leading-7 text-gray-300">
+                            {step.description}
+                          </p>
+                        )}
+
+                        {step.imageUrl && (
+                          <img
+                            src={step.imageUrl}
+                            alt=""
+                            className="mt-5 max-h-80 w-full rounded-xl object-cover"
+                          />
+                        )}
+
+                        <div className="mt-6 space-y-3">
+                          {step.objectives.map((objective) => {
+                            const current = progress.get(objective.objectiveId) ?? 0;
+                            const target = Math.max(1, objective.target);
+                            const percent = Math.min(
+                              100,
+                              Math.round((current / target) * 100)
+                            );
+                            const objectiveCompleted = current >= target;
+
+                            return (
+                              <div
+                                key={objective.objectiveId}
+                                className="rounded-xl border border-white/10 bg-black/20 p-5"
+                              >
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                  <div>
+                                    <h4 className="font-semibold text-white">
+                                      {objective.name}
+                                    </h4>
+                                    {objective.description && (
+                                      <p className="mt-1 text-sm text-gray-400">
+                                        {objective.description}
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  <span
+                                    className={`shrink-0 font-semibold ${
+                                      objectiveCompleted
+                                        ? "text-green-400"
+                                        : "text-gray-200"
+                                    }`}
+                                  >
+                                    {current}/{objective.target}
+                                  </span>
+                                </div>
+
+                                <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+                                  <div
+                                    className={`h-full rounded-full transition-all ${
+                                      objectiveCompleted
+                                        ? "bg-green-500"
+                                        : "bg-amber-500"
+                                    }`}
+                                    style={{ width: `${percent}%` }}
+                                  />
+                                </div>
+
+                                <p className="mt-2 text-xs text-gray-500">
+                                  {percent}% accompli
+                                </p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
 
@@ -410,14 +473,20 @@ export default function QueteDetailPage() {
             )}
 
             {userQuest?.status === "active" && (
-              <button
-                type="button"
-                onClick={handleComplete}
-                disabled={actionLoading}
-                className="rounded-lg bg-amber-600 px-5 py-3 font-semibold text-black transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {actionLoading ? "Validation..." : "Terminer la quête"}
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={handleComplete}
+                  disabled={actionLoading || !allStepsCompleted}
+                  className="rounded-lg bg-amber-600 px-5 py-3 font-semibold text-black transition hover:bg-amber-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {actionLoading
+                    ? "Validation..."
+                    : allStepsCompleted
+                      ? "Terminer la quête"
+                      : "Terminez toutes les étapes"}
+                </button>
+              </>
             )}
           </div>
         </section>

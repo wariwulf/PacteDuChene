@@ -80,21 +80,32 @@ export default function GlobalNavbar() {
 
   return (
     <nav className="sticky top-0 z-50 border-b border-white/10 bg-[#0b1711]/95 shadow-lg backdrop-blur-md">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex min-h-[72px] max-w-[1600px] items-center gap-4 px-4 py-2 sm:px-6">
+        {/* Gauche : emblème + nom du Pacte */}
         <Link
           href={isAuthenticated ? "/espace-membre" : "/"}
           onClick={closeMenus}
-          className="shrink-0 text-base font-bold text-[#f3e8c8] sm:text-lg"
+          className="flex min-w-0 flex-1 items-center text-[#f3e8c8]"
+          aria-label="Le Pacte du Chêne"
         >
-          🌳 Le Pacte du Chêne
+          <img
+            src="/images/member/arbre-pacte.png"
+            alt=""
+            aria-hidden="true"
+            className="h-12 w-12 shrink-0 object-contain sm:h-14 sm:w-14"
+          />
+          <span className="ml-2 truncate text-base font-bold sm:text-lg">
+            Le Pacte du Chêne
+          </span>
         </Link>
 
-        <div className="hidden items-center gap-1 lg:flex">
-          {visibleNavigation.map((item) => (
+        {/* Centre : navigation principale */}
+        <div className="hidden min-w-0 flex-none items-center justify-center gap-1 lg:flex">
+            {visibleNavigation.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`rounded-md px-3 py-2 text-sm font-medium transition ${
+              className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition ${
                 isActive(item)
                   ? "bg-[#b86b00] text-white"
                   : "text-gray-300 hover:bg-white/10 hover:text-white"
@@ -109,7 +120,7 @@ export default function GlobalNavbar() {
               <button
                 type="button"
                 onClick={() => setAdminOpen((value) => !value)}
-                className={`rounded-md px-3 py-2 text-sm font-medium transition ${
+                className={`whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition ${
                   pathname.startsWith("/administration")
                     ? "bg-[#b86b00] text-white"
                     : "text-amber-400 hover:bg-white/10"
@@ -140,7 +151,8 @@ export default function GlobalNavbar() {
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2 sm:gap-4">
+        {/* Droite : identité + déconnexion + menu mobile */}
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-2 sm:gap-4">
           {!isLoading && isAuthenticated ? (
             <>
               <div className="hidden text-right sm:block">
@@ -163,7 +175,7 @@ export default function GlobalNavbar() {
           ) : !isLoading ? (
             <Link
               href="/connexion"
-              className="rounded-md bg-[#b86b00] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#d17c00]"
+              className="hidden rounded-md bg-[#b86b00] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#d17c00] sm:block"
             >
               Connexion
             </Link>
@@ -180,7 +192,6 @@ export default function GlobalNavbar() {
           </button>
         </div>
       </div>
-
       {mobileOpen && (
         <div className="border-t border-white/5 px-4 pb-4 lg:hidden">
           <div className="flex flex-col gap-1 pt-2">

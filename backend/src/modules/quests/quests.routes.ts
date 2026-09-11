@@ -19,8 +19,11 @@ import {
   reviewSubmission,
   adminValidateObjective,
   adminCompleteQuest,
+  uploadQuestImage,
+  uploadQuestStepImage,
 } from "./quests.controller";
 import { questSubmissionUpload } from "./quest-submission.upload";
+import { questMediaUpload } from "./quest-media.upload";
 import { SITE_PERMISSIONS } from "../../common/security/permissions";
 
 const router = Router();
@@ -95,6 +98,21 @@ router.post(
 router.post(
   "/user/:userId/:questId/complete",
   completeQuest
+);
+
+// QUEST MEDIA
+router.post(
+  "/:questId/image",
+  requirePermission(SITE_PERMISSIONS.QUESTS_MANAGE),
+  questMediaUpload.single("image"),
+  uploadQuestImage
+);
+
+router.post(
+  "/:questId/steps/:stepId/image",
+  requirePermission(SITE_PERMISSIONS.QUESTS_MANAGE),
+  questMediaUpload.single("image"),
+  uploadQuestStepImage
 );
 
 // QUESTS

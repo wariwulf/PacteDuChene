@@ -12,6 +12,7 @@ const achievementSchema = new Schema<AchievementDocument>(
     level: { type: Number, enum: [1, 2, 3], required: true, default: 1 },
     rewardCurrencyId: { type: String, trim: true },
     rewardAmount: { type: Number, required: true, default: 0, min: 0 },
+    rewardXp: { type: Number, required: true, default: 0, min: 0 },
     enabled: { type: Boolean, default: true },
   },
   { timestamps: true }

@@ -102,6 +102,30 @@ export class QuestsRepository {
     );
   }
 
+  async updateQuestImage(questId: string, imageUrl: string) {
+    return Quest.findOneAndUpdate(
+      { questId, deletedAt: null },
+      { $set: { imageUrl } },
+      { returnDocument: "after", runValidators: true }
+    );
+  }
+
+  async updateStepImage(
+    questId: string,
+    stepId: string,
+    imageUrl: string
+  ) {
+    return Quest.findOneAndUpdate(
+      {
+        questId,
+        deletedAt: null,
+        "steps.stepId": stepId,
+      },
+      { $set: { "steps.$.imageUrl": imageUrl } },
+      { returnDocument: "after", runValidators: true }
+    );
+  }
+
   async findUserQuest(
     userId: string,
     questId: string

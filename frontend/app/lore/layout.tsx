@@ -1,19 +1,21 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Lore — Le Pacte du Chêne",
-  description: "Plongez dans les archives et les chroniques du Pacte du Chêne dans l'univers de Pax Dei.",
-  alternates: {
-    canonical: "/lore",
-  },
+  title: "Lore de Pax Dei",
+  description:
+    "Plongez dans les chroniques du Pacte du Chêne et découvrez notre histoire, notre univers et le lore de notre aventure dans Pax Dei.",
+  alternates: { canonical: "/lore" },
   openGraph: {
-    title: "Lore — Le Pacte du Chêne",
-    description: "Plongez dans les archives et les chroniques du Pacte du Chêne dans l'univers de Pax Dei.",
+    title: "Lore de Pax Dei — Les Chroniques du Pacte du Chêne",
+    description:
+      "Plongez dans les chroniques du Pacte du Chêne et découvrez notre histoire, notre univers et le lore de notre aventure dans Pax Dei.",
     url: "/lore",
     type: "website",
   },
 };
 
-export default function LoreLayout({ children }: { children: React.ReactNode }) {
+export default function LoreLayout({
+  children,
+}: Readonly<{ children: React.ReactNode }>) {
   return children;
 }

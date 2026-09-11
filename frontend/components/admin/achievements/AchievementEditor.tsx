@@ -8,6 +8,13 @@ import {
   updateAchievement,
 } from "../../../services/achievements.service";
 import type { AchievementLevel } from "../../../types/achievements.types";
+
+interface CurrencyOption {
+  currencyId: string;
+  name: string;
+  icon?: string;
+  enabled?: boolean;
+}
 import { AchievementBadgeImage } from "../../member/achievements/AchievementBadge";
 
 interface Props {
@@ -37,6 +44,8 @@ export default function AchievementEditor({ achievementId }: Props) {
   const [level, setLevel] = useState<AchievementLevel>(1);
   const [rewardCurrencyId, setRewardCurrencyId] = useState("");
   const [rewardAmount, setRewardAmount] = useState(0);
+  const [rewardXp, setRewardXp] = useState(0);
+  const [currencies, setCurrencies] = useState<CurrencyOption[]>([]);
   const [enabled, setEnabled] = useState(true);
   const [linkedQuestName, setLinkedQuestName] = useState("");
   const [loading, setLoading] = useState(editing);
@@ -44,21 +53,80 @@ export default function AchievementEditor({ achievementId }: Props) {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!achievementId) return;
+    async function load() {
+      try {
+        const apiUrl =
+          process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
-    getAchievement(achievementId)
-      .then((achievement) => {
+        const currenciesResponse = await fetch(
+          `${apiUrl}/economy/currencies`,
+          {
+            credentials: "include",
+            cache: "no-store",
+          }
+        );
+
+        const currenciesPayload = await currenciesResponse
+          .json()
+          .catch(() => ({}));
+
+        if (
+          !currenciesResponse.ok ||
+          currenciesPayload?.success === false
+        ) {
+          throw new Error(
+            currenciesPayload?.message ||
+              "Impossible de récupérer les monnaies."
+          );
+        }
+
+        const loadedCurrencies: CurrencyOption[] = Array.isArray(
+          currenciesPayload?.data?.currencies
+        )
+          ? currenciesPayload.data.currencies.filter(
+              (currency: CurrencyOption) => currency.enabled !== false
+            )
+          : [];
+
+        setCurrencies(loadedCurrencies);
+
+        if (!achievementId) {
+          const preferred =
+            loadedCurrencies.find(
+              (currency) => currency.currencyId === "solidus"
+            ) ?? loadedCurrencies[0];
+
+          if (preferred) {
+            setRewardCurrencyId(preferred.currencyId);
+          }
+
+          setLoading(false);
+          return;
+        }
+
+        const achievement = await getAchievement(achievementId);
+
         setId(achievement.achievementId);
         setName(achievement.name);
         setDescription(achievement.description ?? "");
         setLevel(achievement.level);
         setRewardCurrencyId(achievement.rewardCurrencyId ?? "");
         setRewardAmount(achievement.rewardAmount ?? 0);
+        setRewardXp(achievement.rewardXp ?? 0);
         setEnabled(achievement.enabled);
         setLinkedQuestName(achievement.linkedQuestName ?? "");
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : "Impossible de charger l'exploit."))
-      .finally(() => setLoading(false));
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Impossible de charger l'exploit."
+        );
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
   }, [achievementId]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -80,6 +148,7 @@ export default function AchievementEditor({ achievementId }: Props) {
           level,
           rewardCurrencyId: rewardCurrencyId.trim() || undefined,
           rewardAmount: Number(rewardAmount),
+          rewardXp: Number(rewardXp),
           enabled,
         });
       } else {
@@ -92,6 +161,7 @@ export default function AchievementEditor({ achievementId }: Props) {
           level,
           rewardCurrencyId: rewardCurrencyId.trim() || undefined,
           rewardAmount: Number(rewardAmount),
+          rewardXp: Number(rewardXp),
           enabled,
         });
       }
@@ -162,15 +232,58 @@ export default function AchievementEditor({ achievementId }: Props) {
       </section>
 
       <section className="rounded-xl border border-white/10 bg-black/10 p-6">
-        <h2 className="text-xl font-bold">Récompense</h2>
+        <h2 className="text-xl font-bold">Récompenses</h2>
+        <p className="mt-1 text-sm text-gray-400">
+          Un exploit peut récompenser de la monnaie, de l&apos;XP, ou les deux.
+        </p>
+
         <div className="mt-5 grid gap-5 md:grid-cols-2">
           <label>
-            <span className="mb-2 block text-sm font-semibold">Identifiant de la monnaie</span>
-            <input value={rewardCurrencyId} onChange={(e) => setRewardCurrencyId(e.target.value)} placeholder="solidus" className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3" />
+            <span className="mb-2 block text-sm font-semibold">Monnaie</span>
+            <select
+              value={rewardCurrencyId}
+              onChange={(e) => setRewardCurrencyId(e.target.value)}
+              className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3"
+            >
+              <option value="">Aucune monnaie</option>
+              {currencies.map((currency) => (
+                <option key={currency.currencyId} value={currency.currencyId}>
+                  {currency.name}
+                </option>
+              ))}
+            </select>
           </label>
+
           <label>
-            <span className="mb-2 block text-sm font-semibold">Quantité</span>
-            <input type="number" min={0} value={rewardAmount} onChange={(e) => setRewardAmount(Number(e.target.value))} className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3" />
+            <span className="mb-2 block text-sm font-semibold">
+              Quantité de monnaie
+            </span>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={rewardAmount}
+              onChange={(e) => setRewardAmount(Number(e.target.value))}
+              className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3"
+            />
+          </label>
+
+          <label className="md:col-span-2">
+            <span className="mb-2 block text-sm font-semibold">
+              Expérience (XP)
+            </span>
+            <input
+              type="number"
+              min={0}
+              step={1}
+              value={rewardXp}
+              onChange={(e) => setRewardXp(Number(e.target.value))}
+              placeholder="Ex. 100"
+              className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3"
+            />
+            <span className="mt-2 block text-xs text-gray-500">
+              Laissez 0 si cet exploit ne doit pas donner d&apos;XP.
+            </span>
           </label>
         </div>
       </section>

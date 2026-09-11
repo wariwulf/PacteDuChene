@@ -26,6 +26,7 @@ export class AchievementsRepository {
     level: AchievementLevel;
     rewardCurrencyId?: string;
     rewardAmount: number;
+    rewardXp: number;
     enabled?: boolean;
   }) {
     return Achievement.create(data);
@@ -39,6 +40,7 @@ export class AchievementsRepository {
       level?: AchievementLevel;
       rewardCurrencyId?: string;
       rewardAmount?: number;
+      rewardXp?: number;
       enabled?: boolean;
     }
   ) {
@@ -85,6 +87,7 @@ export class AchievementsRepository {
         level: achievement.level,
         rewardCurrencyId: achievement.rewardCurrencyId,
         rewardAmount: achievement.rewardAmount,
+        rewardXp: achievement.rewardXp,
         unlockedAt: userAchievement.unlockedAt,
         featuredOrder: userAchievement.featuredOrder,
       }];

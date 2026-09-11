@@ -264,3 +264,65 @@ export async function completeQuest(
 
   return response.data;
 }
+/**
+ * Envoie l'image principale d'une quête après sa création ou sa modification.
+ */
+export async function uploadQuestImage(
+  questId: string,
+  file: File
+): Promise<QuestDefinition> {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const response = await fetch(
+    `${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/$/, "")}/quests/${encodeURIComponent(questId)}/image`,
+    {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    }
+  );
+
+  const payload = (await response.json().catch(() => ({}))) as QuestResponse;
+
+  if (!response.ok || payload.success === false || !payload.data?.quest) {
+    throw new Error(
+      payload.message ||
+        `Impossible d'envoyer l'image de la quête (${response.status}).`
+    );
+  }
+
+  return payload.data.quest;
+}
+
+/**
+ * Envoie l'image d'une étape après la création ou la modification de la quête.
+ */
+export async function uploadQuestStepImage(
+  questId: string,
+  stepId: string,
+  file: File
+): Promise<QuestDefinition> {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  const response = await fetch(
+    `${(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api").replace(/\/$/, "")}/quests/${encodeURIComponent(questId)}/steps/${encodeURIComponent(stepId)}/image`,
+    {
+      method: "POST",
+      credentials: "include",
+      body: formData,
+    }
+  );
+
+  const payload = (await response.json().catch(() => ({}))) as QuestResponse;
+
+  if (!response.ok || payload.success === false || !payload.data?.quest) {
+    throw new Error(
+      payload.message ||
+        `Impossible d'envoyer l'image de l'étape (${response.status}).`
+    );
+  }
+
+  return payload.data.quest;
+}

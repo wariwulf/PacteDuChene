@@ -24,6 +24,9 @@ const questStepSchema = new Schema(
     name: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
     imageUrl: { type: String, trim: true },
+    // Les anciennes étapes sans ce champ restent traitées comme dépendantes
+    // côté service pour préserver un enchaînement naturel.
+    requiresPreviousStep: { type: Boolean, default: true },
     difficulty: {
       type: Number,
       required: true,

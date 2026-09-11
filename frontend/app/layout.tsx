@@ -11,24 +11,17 @@ const cinzel = Cinzel({ subsets: ["latin"], variable: "--font-cinzel" });
 
 const siteTitle = "Le Pacte du Chêne";
 const siteDescription =
-  "Communauté francophone de Pax Dei : actualités, lore, quêtes, événements, économie et vie du clan.";
+  "Découvrez Le Pacte du Chêne, une communauté francophone dédiée à Pax Dei. Retrouvez nos actualités, notre lore et la vie de notre communauté.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://lepacteduchene.fr"),
-
   title: {
-    default: siteTitle,
+    default: "Le Pacte du Chêne — Communauté francophone Pax Dei",
     template: `%s | ${siteTitle}`,
   },
-
   description: siteDescription,
-
   applicationName: siteTitle,
-
-  alternates: {
-    canonical: "/",
-  },
-
+  alternates: { canonical: "/" },
   robots: {
     index: true,
     follow: true,
@@ -40,33 +33,28 @@ export const metadata: Metadata = {
       "max-video-preview": -1,
     },
   },
-
   icons: {
     icon: "/images/member/arbre-pacte.png",
     shortcut: "/images/member/arbre-pacte.png",
     apple: "/images/member/arbre-pacte.png",
   },
-
   openGraph: {
-    title: siteTitle,
+    title: "Le Pacte du Chêne — Communauté francophone Pax Dei",
     description: siteDescription,
     url: "https://lepacteduchene.fr/",
     siteName: siteTitle,
     locale: "fr_FR",
     type: "website",
-    images: [
-      {
-        url: "/opengraph-image.jpg",
-        width: 1200,
-        height: 630,
-        alt: "Le Pacte du Chêne — Communauté Pax Dei",
-      },
-    ],
+    images: [{
+      url: "/opengraph-image.jpg",
+      width: 1200,
+      height: 630,
+      alt: "Le Pacte du Chêne — Communauté Pax Dei",
+    }],
   },
-
   twitter: {
     card: "summary_large_image",
-    title: siteTitle,
+    title: "Le Pacte du Chêne — Communauté francophone Pax Dei",
     description: siteDescription,
     images: ["/opengraph-image.jpg"],
   },

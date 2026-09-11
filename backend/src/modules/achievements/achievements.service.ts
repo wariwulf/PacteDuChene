@@ -1,5 +1,6 @@
 import { AchievementsRepository } from "./achievements.repository";
 import { EconomyService } from "../economy/economy.service";
+import { LevelsService } from "../levels/levels.service";
 import { Quest } from "../quests/quests.model";
 import type {
   AchievementLevel,
@@ -12,7 +13,8 @@ export type AchievementUnlockSource = "manual" | "quest";
 export class AchievementsService {
   constructor(
     private readonly achievementsRepository = new AchievementsRepository(),
-    private readonly economyService = new EconomyService()
+    private readonly economyService = new EconomyService(),
+    private readonly levelsService = new LevelsService()
   ) {}
 
   private async getQuestLink(achievementId: string) {
@@ -66,6 +68,7 @@ export class AchievementsService {
     level: AchievementLevel;
     rewardCurrencyId?: string;
     rewardAmount: number;
+    rewardXp: number;
     enabled?: boolean;
   }) {
     const existing = await this.achievementsRepository.findByAchievementId(
@@ -84,6 +87,13 @@ export class AchievementsService {
       throw new Error("La récompense ne peut pas être négative.");
     }
 
+    if (
+      !Number.isFinite(data.rewardXp) ||
+      data.rewardXp < 0
+    ) {
+      throw new Error("La récompense XP ne peut pas être négative.");
+    }
+
     return this.achievementsRepository.create(data);
   }
 
@@ -95,6 +105,7 @@ export class AchievementsService {
       level?: AchievementLevel;
       rewardCurrencyId?: string;
       rewardAmount?: number;
+      rewardXp?: number;
       enabled?: boolean;
     }
   ) {
@@ -120,6 +131,17 @@ export class AchievementsService {
       (typeof data.rewardAmount !== "number" || data.rewardAmount < 0)
     ) {
       throw new Error("La récompense ne peut pas être négative.");
+    }
+
+    if (
+      data.rewardXp !== undefined &&
+      (
+        typeof data.rewardXp !== "number" ||
+        !Number.isFinite(data.rewardXp) ||
+        data.rewardXp < 0
+      )
+    ) {
+      throw new Error("La récompense XP ne peut pas être négative.");
     }
 
     const updated = await this.achievementsRepository.update(achievementId, data);
@@ -219,13 +241,27 @@ export class AchievementsService {
       );
     }
 
+    let level = null;
+
+    if (achievement.rewardXp > 0) {
+      level = await this.levelsService.addXp(
+        userId,
+        achievement.rewardXp,
+        "ACHIEVEMENT",
+        `Récompense de l'exploit « ${achievement.name} »`,
+        achievement.achievementId
+      );
+    }
+
     return {
       achievement: unlocked,
       reward: {
         currencyId: achievement.rewardCurrencyId ?? null,
         amount: achievement.rewardAmount,
+        xp: achievement.rewardXp,
       },
       balances,
+      level,
     };
   }
 

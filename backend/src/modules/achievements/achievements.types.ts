@@ -8,6 +8,7 @@ export interface AchievementDocument {
   level: AchievementLevel;
   rewardCurrencyId?: string;
   rewardAmount: number;
+  rewardXp: number;
   enabled: boolean;
 }
 
@@ -31,6 +32,7 @@ export interface FeaturedUserAchievement {
   level: AchievementLevel;
   rewardCurrencyId?: string;
   rewardAmount: number;
+  rewardXp: number;
   unlockedAt: Date;
   featuredOrder: number;
 }

@@ -61,6 +61,48 @@ type DiscordProfile = {
   roles: DiscordRole[];
 };
 
+type EconomyTransaction = {
+  _id?: string;
+  userId: string;
+  currencyId: string;
+  amount: number;
+  type: string;
+  source?: string;
+  sourceId?: string;
+  description?: string;
+  createdAt: string | Date;
+  adminUserId?: string;
+  adminName?: string;
+  adminDisplayName?: string;
+};
+
+type EconomyBalances = {
+  solidus: number;
+  argent: number;
+  bronze: number;
+};
+
+type LevelHistoryEntry = {
+  action: "XP_ADD" | "XP_REMOVE" | "XP_SET" | "LEVEL_SET";
+  amount?: number;
+  source: "QUEST" | "ACHIEVEMENT" | "ADMIN" | "EVENT";
+  sourceId?: string;
+  reason?: string;
+  previousXp: number;
+  newXp: number;
+  previousLevel: number;
+  newLevel: number;
+  createdAt: string | Date;
+};
+
+type UserLevel = {
+  userId: string;
+  xp: number;
+  level: number;
+  levelName: string;
+  history: LevelHistoryEntry[];
+};
+
 function extractArray(payload: any): Member[] {
   if (Array.isArray(payload?.data)) {
     return payload.data;
@@ -160,6 +202,23 @@ export default function AdministrationMembresPage() {
   const [discordProfileLoading, setDiscordProfileLoading] =
     useState(false);
   const [discordProfileError, setDiscordProfileError] =
+    useState("");
+
+  const [economyHistory, setEconomyHistory] =
+    useState<EconomyTransaction[]>([]);
+  const [economyBalances, setEconomyBalances] =
+    useState<EconomyBalances>({
+      solidus: 0,
+      argent: 0,
+      bronze: 0,
+    });
+  const [levelHistory, setLevelHistory] =
+    useState<LevelHistoryEntry[]>([]);
+  const [selectedLevel, setSelectedLevel] =
+    useState<UserLevel | null>(null);
+  const [historyLoading, setHistoryLoading] =
+    useState(false);
+  const [historyError, setHistoryError] =
     useState("");
 
   const [form, setForm] = useState({
@@ -278,6 +337,15 @@ export default function AdministrationMembresPage() {
     setAvatarFile(null);
     setDiscordProfile(null);
     setDiscordProfileError("");
+    setEconomyHistory([]);
+    setEconomyBalances({
+      solidus: 0,
+      argent: 0,
+      bronze: 0,
+    });
+    setLevelHistory([]);
+    setSelectedLevel(null);
+    setHistoryError("");
 
     setForm({
       email: "",
@@ -307,6 +375,74 @@ export default function AdministrationMembresPage() {
       discordId: member.discord?.discordId || "",
       discordUsername: member.discord?.username || "",
     });
+
+    void loadMemberHistory(member.id);
+  }
+
+  async function loadMemberHistory(userId: string) {
+    setHistoryLoading(true);
+    setHistoryError("");
+
+    try {
+      const [economyPayload, levelPayload, balancePayload] =
+        await Promise.all([
+          apiRequest(
+            `/economy/${encodeURIComponent(userId)}/history`
+          ),
+          apiRequest(
+            `/levels/user/${encodeURIComponent(userId)}`
+          ),
+          apiRequest(
+            `/economy/${encodeURIComponent(userId)}`
+          ),
+        ]);
+
+      const economyData = economyPayload?.data;
+      const economyTransactions =
+        Array.isArray(economyData)
+          ? economyData
+          : Array.isArray(economyData?.history)
+            ? economyData.history
+            : Array.isArray(economyPayload?.history)
+              ? economyPayload.history
+              : [];
+
+      const level =
+        levelPayload?.data?.level ??
+        levelPayload?.level ??
+        null;
+
+      const rawBalances =
+        balancePayload?.data?.balances ??
+        balancePayload?.balances ??
+        null;
+
+      const balances: EconomyBalances = {
+        solidus: Number(rawBalances?.solidus ?? 0),
+        argent: Number(rawBalances?.argent ?? 0),
+        bronze: Number(rawBalances?.bronze ?? 0),
+      };
+
+      setEconomyHistory(economyTransactions);
+      setEconomyBalances(balances);
+      setSelectedLevel(level);
+      setLevelHistory(
+        Array.isArray(level?.history)
+          ? level.history
+          : []
+      );
+    } catch (err) {
+      setEconomyHistory([]);
+      setSelectedLevel(null);
+      setLevelHistory([]);
+      setHistoryError(
+        err instanceof Error
+          ? err.message
+          : "Impossible de récupérer les historiques du membre."
+      );
+    } finally {
+      setHistoryLoading(false);
+    }
   }
 
   async function loadDiscordProfile(userId: string) {
@@ -649,6 +785,113 @@ export default function AdministrationMembresPage() {
           ? err.message
           : "Impossible de restaurer le membre."
       );
+    }
+  }
+
+  function currencyLabel(currencyId: string) {
+    switch (currencyId) {
+      case "solidus":
+        return "Solidus";
+      case "argent":
+        return "Argent";
+      case "bronze":
+        return "Bronze";
+      default:
+        return currencyId;
+    }
+  }
+
+  function transactionTypeLabel(type: string) {
+    switch (type) {
+      case "quest_reward":
+        return "Récompense de quête";
+      case "achievement_reward":
+        return "Récompense d'exploit";
+      case "purchase":
+        return "Achat";
+      case "admin_add":
+        return "Ajout administratif";
+      case "admin_remove":
+        return "Retrait administratif";
+      case "exchange":
+        return "Échange";
+      case "daily_reward":
+        return "Récompense quotidienne";
+      case "voice_reward":
+        return "Présence vocale";
+      case "event_reward":
+        return "Récompense d'événement";
+      default:
+        return type;
+    }
+  }
+
+  function levelSourceLabel(source: LevelHistoryEntry["source"]) {
+    switch (source) {
+      case "QUEST":
+        return "Quête";
+      case "ACHIEVEMENT":
+        return "Exploit";
+      case "EVENT":
+        return "Événement";
+      default:
+        return "Administration";
+    }
+  }
+
+  function formatDate(value: string | Date) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "Date inconnue";
+    return date.toLocaleString("fr-FR", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  }
+
+  function adminNameForTransaction(transaction: EconomyTransaction) {
+    if (transaction.adminDisplayName) return transaction.adminDisplayName;
+    if (transaction.adminName) return transaction.adminName;
+
+    if (
+      (transaction.type === "admin_add" ||
+        transaction.type === "admin_remove" ||
+        transaction.source === "admin") &&
+      transaction.sourceId
+    ) {
+      /*
+       * Les opérations administratives utilisent actuellement sourceId
+       * sous la forme : adminUserId:timestamp:userId
+       *
+       * On récupère uniquement l'identifiant du compte ayant effectué
+       * l'opération afin de pouvoir retrouver son nom dans members.
+       */
+      const adminUserId = transaction.sourceId.split(":")[0].trim();
+
+      const admin = members.find(
+        (member) => member.id === adminUserId
+      );
+
+      return (
+        admin?.profile?.displayName ||
+        admin?.profile?.username ||
+        admin?.discord?.username ||
+        adminUserId
+      );
+    }
+
+    return null;
+  }
+
+  function balanceAmount(currencyId: string) {
+    switch (currencyId) {
+      case "solidus":
+        return economyBalances.solidus;
+      case "argent":
+        return economyBalances.argent;
+      case "bronze":
+        return economyBalances.bronze;
+      default:
+        return 0;
     }
   }
 
@@ -1164,6 +1407,186 @@ export default function AdministrationMembresPage() {
             </div>
           </form>
         </section>
+
+        {selected && (
+          <section className="mb-8 grid gap-6 lg:grid-cols-2">
+            <div className="rounded-2xl border border-amber-800 bg-green-950/70 p-6 lg:col-span-2">
+              <div className="mb-5">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-400">
+                  Économie
+                </p>
+                <h2 className="text-2xl font-bold">Solde du membre</h2>
+              </div>
+
+              {historyLoading ? (
+                <p className="text-green-200">Chargement du solde...</p>
+              ) : (
+                <div className="grid gap-4 sm:grid-cols-3">
+                  {[
+                    { id: "solidus", label: "Solidus" },
+                    { id: "argent", label: "Argent" },
+                    { id: "bronze", label: "Bronze" },
+                  ].map((currency) => (
+                    <div
+                      key={currency.id}
+                      className="rounded-xl border border-green-800 bg-green-900/60 p-5 text-center"
+                    >
+                      <p className="text-sm uppercase tracking-[0.15em] text-green-300">
+                        {currency.label}
+                      </p>
+                      <p className="mt-2 text-3xl font-bold text-amber-300">
+                        {balanceAmount(currency.id).toLocaleString("fr-FR")}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-green-800 bg-green-900/60 p-6">
+              <div className="mb-5 flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-amber-400">
+                    Économie
+                  </p>
+                  <h2 className="text-2xl font-bold">Historique des transactions</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void loadMemberHistory(selected.id)}
+                  disabled={historyLoading}
+                  className="rounded-lg border border-green-600 px-3 py-2 text-sm font-semibold hover:bg-green-900 disabled:opacity-50"
+                >
+                  Actualiser
+                </button>
+              </div>
+
+              {historyLoading ? (
+                <p className="text-green-200">Chargement...</p>
+              ) : historyError ? (
+                <p className="rounded-lg border border-red-700 bg-red-950/40 p-4 text-sm text-red-200">
+                  {historyError}
+                </p>
+              ) : economyHistory.length === 0 ? (
+                <p className="rounded-lg bg-green-950 p-4 text-sm text-green-300">
+                  Aucune transaction enregistrée pour ce membre.
+                </p>
+              ) : (
+                <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1">
+                  {economyHistory.map((transaction, index) => {
+                    const positive = transaction.amount > 0;
+                    return (
+                      <article
+                        key={transaction._id || `${transaction.createdAt}-${index}`}
+                        className="rounded-xl border border-green-800 bg-green-950/70 p-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-white">
+                              {transaction.description || transactionTypeLabel(transaction.type)}
+                            </p>
+                            <p className="mt-1 text-xs text-green-400">
+                              {formatDate(transaction.createdAt)} · {transactionTypeLabel(transaction.type)}
+                            </p>
+                          </div>
+                          <span className={`font-bold ${positive ? "text-green-300" : "text-red-300"}`}>
+                            {positive ? "+" : ""}{transaction.amount.toLocaleString("fr-FR")} {currencyLabel(transaction.currencyId)}
+                          </span>
+                        </div>
+                        {(transaction.source || transaction.sourceId) && (
+                          <p className="mt-2 break-all text-xs text-green-500">
+                            Source : {transaction.source || "—"}{transaction.sourceId ? ` · ${transaction.sourceId}` : ""}
+                          </p>
+                        )}
+                        {adminNameForTransaction(transaction) && (
+                          <p className="mt-2 text-xs text-amber-300">
+                            Administrateur : {adminNameForTransaction(transaction)}
+                          </p>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-2xl border border-indigo-800 bg-indigo-950/30 p-6">
+              <div className="mb-5 flex items-end justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-300">
+                    Progression
+                  </p>
+                  <h2 className="text-2xl font-bold">Historique de l'XP</h2>
+                </div>
+                {selectedLevel && (
+                  <div className="text-right">
+                    <p className="text-xs uppercase tracking-wide text-indigo-300">Niveau actuel</p>
+                    <p className="font-bold text-white">
+                      {selectedLevel.level} · {selectedLevel.levelName}
+                    </p>
+                    <p className="text-sm text-indigo-200">{selectedLevel.xp.toLocaleString("fr-FR")} XP</p>
+                  </div>
+                )}
+              </div>
+
+              {historyLoading ? (
+                <p className="text-indigo-200">Chargement...</p>
+              ) : levelHistory.length === 0 ? (
+                <p className="rounded-lg bg-green-950/70 p-4 text-sm text-indigo-200">
+                  Aucun mouvement d'XP enregistré pour ce membre.
+                </p>
+              ) : (
+                <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1">
+                  {levelHistory.map((entry, index) => {
+                    const delta = entry.newXp - entry.previousXp;
+                    return (
+                      <article
+                        key={`${entry.createdAt}-${index}`}
+                        className="rounded-xl border border-indigo-800 bg-green-950/70 p-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-white">
+                              {levelSourceLabel(entry.source)}
+                            </p>
+                            <p className="mt-1 text-xs text-indigo-300">
+                              {formatDate(entry.createdAt)} · {entry.action}
+                            </p>
+                          </div>
+                          <span className={`font-bold ${delta >= 0 ? "text-green-300" : "text-red-300"}`}>
+                            {delta >= 0 ? "+" : ""}{delta.toLocaleString("fr-FR")} XP
+                          </span>
+                        </div>
+
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                          <div className="rounded-lg border border-green-800 bg-green-900/50 p-2">
+                            <span className="text-green-400">Avant</span>
+                            <p className="mt-1 text-white">Niv. {entry.previousLevel} · {entry.previousXp.toLocaleString("fr-FR")} XP</p>
+                          </div>
+                          <div className="rounded-lg border border-green-800 bg-green-900/50 p-2">
+                            <span className="text-green-400">Après</span>
+                            <p className="mt-1 text-white">Niv. {entry.newLevel} · {entry.newXp.toLocaleString("fr-FR")} XP</p>
+                          </div>
+                        </div>
+
+                        {entry.reason && (
+                          <p className="mt-3 text-sm text-indigo-200">
+                            {entry.reason}
+                          </p>
+                        )}
+                        {entry.sourceId && (
+                          <p className="mt-1 break-all text-xs text-indigo-400">
+                            Source : {entry.sourceId}
+                          </p>
+                        )}
+                      </article>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         <section className="rounded-2xl border border-green-800 bg-green-900/60 p-6">
           <div className="mb-5 flex flex-col justify-between gap-4 md:flex-row md:items-center">

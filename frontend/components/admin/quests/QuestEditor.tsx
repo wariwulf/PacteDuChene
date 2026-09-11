@@ -7,6 +7,8 @@ import {
   getQuest,
   getQuests,
   updateQuest,
+  uploadQuestImage,
+  uploadQuestStepImage,
 } from "@/services/quests.service";
 import QuestDifficulty from "@/components/admin/quests/QuestDifficulty";
 import type { QuestDefinition, QuestObjective, QuestStep } from "@/types/quests.types";
@@ -82,12 +84,16 @@ export default function QuestEditor({ questId }: Props) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [imageUrl, setImageUrl] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState("");
   const [difficulty, setDifficulty] = useState(1);
   const [prerequisites, setPrerequisites] = useState<string[]>([]);
   const [availableQuests, setAvailableQuests] = useState<QuestDefinition[]>([]);
   const [availableAchievements, setAvailableAchievements] = useState<AchievementOption[]>([]);
   const [availableCurrencies, setAvailableCurrencies] = useState<CurrencyOption[]>([]);
   const [steps, setSteps] = useState<StepForm[]>([newStep(0)]);
+  const [stepImageFiles, setStepImageFiles] = useState<Record<string, File>>({});
+  const [stepImagePreviews, setStepImagePreviews] = useState<Record<string, string>>({});
   const [rewardXp, setRewardXp] = useState(0);
   const [rewardCurrencyId, setRewardCurrencyId] = useState("");
   const [rewardAmount, setRewardAmount] = useState(0);
@@ -131,6 +137,8 @@ export default function QuestEditor({ questId }: Props) {
           setName(quest.name);
           setDescription(quest.description ?? "");
           setImageUrl(quest.imageUrl ?? "");
+          setImagePreview(quest.imageUrl ?? "");
+          setImageFile(null);
           setDifficulty(quest.difficulty ?? 1);
           setPrerequisites(quest.prerequisites ?? []);
           setSteps(legacySteps(quest));
@@ -149,6 +157,28 @@ export default function QuestEditor({ questId }: Props) {
     load();
   }, [questId]);
 
+  function readImagePreview(file: File, onLoaded: (value: string) => void) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") onLoaded(reader.result);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleQuestImageChange(file: File | undefined) {
+    if (!file) return;
+    setImageFile(file);
+    readImagePreview(file, setImagePreview);
+  }
+
+  function handleStepImageChange(stepId: string, file: File | undefined) {
+    if (!file) return;
+    setStepImageFiles((current) => ({ ...current, [stepId]: file }));
+    readImagePreview(file, (preview) =>
+      setStepImagePreviews((current) => ({ ...current, [stepId]: preview }))
+    );
+  }
+
   function updateStep(index: number, field: keyof StepForm, value: string | number | boolean) {
     setSteps((current) => current.map((step, i) => i === index ? { ...step, [field]: value } : step));
   }
@@ -162,12 +192,30 @@ export default function QuestEditor({ questId }: Props) {
         index += 1;
         candidate = `etape-${index + 1}`;
       }
-      return [...current, newStep(index)];
+      return [
+        ...current,
+        { ...newStep(index), requiresPreviousStep: current.length > 0 },
+      ];
     });
   }
 
   function removeStep(index: number) {
-    setSteps((current) => current.filter((_, i) => i !== index));
+    setSteps((current) => {
+      const removed = current[index];
+      if (removed) {
+        setStepImageFiles((files) => {
+          const next = { ...files };
+          delete next[removed.stepId];
+          return next;
+        });
+        setStepImagePreviews((previews) => {
+          const next = { ...previews };
+          delete next[removed.stepId];
+          return next;
+        });
+      }
+      return current.filter((_, i) => i !== index);
+    });
   }
 
   function moveStep(index: number, direction: -1 | 1) {
@@ -296,12 +344,13 @@ export default function QuestEditor({ questId }: Props) {
       }
     }
 
-    const cleanedSteps = steps.map((step) => ({
+    const cleanedSteps = steps.map((step, stepIndex) => ({
       ...step,
       stepId: step.stepId.trim(),
       name: step.name.trim(),
       description: step.description?.trim() || undefined,
       imageUrl: step.imageUrl?.trim() || undefined,
+      requiresPreviousStep: stepIndex > 0 ? step.requiresPreviousStep !== false : false,
       difficulty: Number(step.difficulty),
       objectives: step.objectives.map((objective) => ({
         objectiveId: objective.objectiveId.trim(),
@@ -332,11 +381,31 @@ export default function QuestEditor({ questId }: Props) {
         enabled,
       };
 
+      let savedQuest: QuestDefinition;
+
       if (editing && questId) {
-        await updateQuest(questId, payload);
+        savedQuest = await updateQuest(questId, payload);
       } else {
-        await createQuest(payload);
+        savedQuest = await createQuest(payload);
       }
+
+      // Les fichiers sont envoyés après l'enregistrement JSON afin de
+      // conserver la compatibilité avec l'API actuelle.
+      if (imageFile) {
+        savedQuest = await uploadQuestImage(savedQuest.questId, imageFile);
+      }
+
+      for (const step of cleanedSteps) {
+        const file = stepImageFiles[step.stepId];
+        if (file) {
+          savedQuest = await uploadQuestStepImage(
+            savedQuest.questId,
+            step.stepId,
+            file
+          );
+        }
+      }
+
       router.push("/administration/quetes");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Impossible d'enregistrer la quête.");
@@ -370,8 +439,21 @@ export default function QuestEditor({ questId }: Props) {
               </label>
               <label className="block md:col-span-2">
                 <span className="mb-2 block text-sm font-semibold">Image de la quête</span>
-                <input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500" placeholder="/images/quetes/sanglier.jpg ou URL complète" />
-                <span className="mt-1 block text-xs text-gray-500">Cette image est la seule affichée dans la liste des quêtes.</span>
+                <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={(e) => handleQuestImageChange(e.target.files?.[0])}
+                    className="block w-full text-sm text-gray-300 file:mr-4 file:rounded-lg file:border-0 file:bg-amber-600 file:px-4 file:py-2 file:font-semibold file:text-black hover:file:bg-amber-500"
+                  />
+                  <p className="mt-2 text-xs text-gray-500">JPG, PNG ou WebP — 5 Mo maximum.</p>
+                  {imageFile && <p className="mt-2 text-xs text-amber-300">Nouvelle image : {imageFile.name}</p>}
+                </div>
+                <div className="mt-3">
+                  <span className="mb-2 block text-xs font-semibold text-gray-400">Ou utiliser une URL</span>
+                  <input value={imageUrl} onChange={(e) => { setImageUrl(e.target.value); if (!imageFile) setImagePreview(e.target.value); }} className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500" placeholder="/images/quetes/sanglier.jpg ou URL complète" />
+                </div>
+                <span className="mt-2 block text-xs text-gray-500">Cette image est affichée dans la liste et sur la page de la quête. Si un fichier est sélectionné, il remplace l'image lors de l'enregistrement.</span>
               </label>
               <label className="block">
                 <span className="mb-2 block text-sm font-semibold">Difficulté</span>
@@ -385,7 +467,7 @@ export default function QuestEditor({ questId }: Props) {
                 <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="w-full resize-y rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500" />
               </label>
             </div>
-            {imageUrl && <img src={imageUrl} alt="" className="mt-5 h-48 w-full rounded-xl object-cover" />}
+            {(imagePreview || imageUrl) && <img src={imagePreview || imageUrl} alt="Aperçu de la quête" className="mt-5 h-48 w-full rounded-xl object-cover" />}
           </section>
 
           <section className="rounded-2xl border border-amber-500/20 bg-black/20 p-6">
@@ -421,12 +503,42 @@ export default function QuestEditor({ questId }: Props) {
 
                   <div className="grid gap-5 md:grid-cols-2">
                     <label className="md:col-span-2"><span className="mb-2 block text-sm font-semibold">Titre</span><input value={step.name} onChange={(e) => updateStep(stepIndex, "name", e.target.value)} className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500" /></label>
-                    <label className="md:col-span-2"><span className="mb-2 block text-sm font-semibold">Image de l'étape</span><input value={step.imageUrl ?? ""} onChange={(e) => updateStep(stepIndex, "imageUrl", e.target.value)} className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500" placeholder="/images/quetes/etape.jpg ou URL complète" /></label>
+                    <label className="md:col-span-2">
+                      <span className="mb-2 block text-sm font-semibold">Image de l'étape</span>
+                      <div className="rounded-xl border border-white/10 bg-black/20 p-4">
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={(e) => handleStepImageChange(step.stepId, e.target.files?.[0])}
+                          className="block w-full text-sm text-gray-300 file:mr-4 file:rounded-lg file:border-0 file:bg-amber-600 file:px-4 file:py-2 file:font-semibold file:text-black hover:file:bg-amber-500"
+                        />
+                        <p className="mt-2 text-xs text-gray-500">JPG, PNG ou WebP — 5 Mo maximum.</p>
+                        {stepImageFiles[step.stepId] && <p className="mt-2 text-xs text-amber-300">Nouvelle image : {stepImageFiles[step.stepId].name}</p>}
+                      </div>
+                      <div className="mt-3">
+                        <span className="mb-2 block text-xs font-semibold text-gray-400">Ou utiliser une URL</span>
+                        <input value={step.imageUrl ?? ""} onChange={(e) => updateStep(stepIndex, "imageUrl", e.target.value)} className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500" placeholder="/images/quetes/etape.jpg ou URL complète" />
+                      </div>
+                    </label>
                     <label><span className="mb-2 block text-sm font-semibold">Difficulté</span><div className="rounded-lg border border-white/10 bg-black/20 px-4 py-3"><QuestDifficulty value={step.difficulty} /><input type="range" min={1} max={5} value={step.difficulty} onChange={(e) => updateStep(stepIndex, "difficulty", Number(e.target.value))} className="mt-3 w-full accent-amber-500" /></div></label>
                     <label className="md:col-span-2"><span className="mb-2 block text-sm font-semibold">Description de l'étape</span><textarea value={step.description ?? ""} onChange={(e) => updateStep(stepIndex, "description", e.target.value)} rows={3} className="w-full resize-y rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500" /></label>
+                    {stepIndex > 0 && (
+                      <label className="md:col-span-2 flex cursor-pointer items-center gap-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+                        <input
+                          type="checkbox"
+                          checked={step.requiresPreviousStep !== false}
+                          onChange={(e) => updateStep(stepIndex, "requiresPreviousStep", e.target.checked)}
+                          className="h-5 w-5 accent-amber-500"
+                        />
+                        <span>
+                          <strong className="block text-sm">Nécessite la fin de l'étape précédente</strong>
+                          <small className="text-xs text-gray-500">Le membre devra terminer l'étape {stepIndex} avant de pouvoir accéder à celle-ci.</small>
+                        </span>
+                      </label>
+                    )}
                   </div>
 
-                  {step.imageUrl && <img src={step.imageUrl} alt="" className="mt-5 h-40 w-full rounded-xl object-cover" />}
+                  {(stepImagePreviews[step.stepId] || step.imageUrl) && <img src={stepImagePreviews[step.stepId] || step.imageUrl} alt="Aperçu de l'étape" className="mt-5 h-40 w-full rounded-xl object-cover" />}
 
                   <div className="mt-6 border-t border-white/10 pt-5">
                     <div className="mb-4 flex items-center justify-between gap-3"><div><h4 className="font-semibold">Objectifs</h4><p className="text-xs text-gray-500">Les objectifs restent reliés au moteur d'événements du jeu.</p></div><button type="button" onClick={() => addObjective(stepIndex)} className="rounded-lg bg-white/10 px-3 py-2 text-sm font-semibold hover:bg-white/20">+ Objectif</button></div>

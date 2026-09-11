@@ -142,6 +142,86 @@ export async function getQuest(
   }
 }
 
+export async function uploadQuestImage(
+  req: Request,
+  res: Response
+) {
+  try {
+    const questId = String(req.params.questId ?? "").trim();
+    const file = req.file;
+
+    if (!questId) {
+      return res.status(400).json({
+        success: false,
+        message: "L'identifiant de la quête est obligatoire.",
+      });
+    }
+
+    if (!file) {
+      return res.status(400).json({
+        success: false,
+        message: "Aucune image n'a été envoyée.",
+      });
+    }
+
+    const quest = await questsService.updateQuestImage(
+      questId,
+      `/uploads/quests/${file.filename}`
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: { quest },
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error instanceof Error ? error.message : "Impossible d'envoyer l'image de la quête.",
+    });
+  }
+}
+
+export async function uploadQuestStepImage(
+  req: Request,
+  res: Response
+) {
+  try {
+    const questId = String(req.params.questId ?? "").trim();
+    const stepId = String(req.params.stepId ?? "").trim();
+    const file = req.file;
+
+    if (!questId || !stepId) {
+      return res.status(400).json({
+        success: false,
+        message: "La quête et l'étape sont obligatoires.",
+      });
+    }
+
+    if (!file) {
+      return res.status(400).json({
+        success: false,
+        message: "Aucune image n'a été envoyée.",
+      });
+    }
+
+    const quest = await questsService.updateQuestStepImage(
+      questId,
+      stepId,
+      `/uploads/quests/${file.filename}`
+    );
+
+    return res.status(200).json({
+      success: true,
+      data: { quest },
+    });
+  } catch (error) {
+    return res.status(400).json({
+      success: false,
+      message: error instanceof Error ? error.message : "Impossible d'envoyer l'image de l'étape.",
+    });
+  }
+}
+
 export async function createQuest(
   req: Request,
   res: Response
