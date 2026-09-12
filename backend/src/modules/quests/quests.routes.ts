@@ -1,4 +1,5 @@
-import { Router } from "express";
+import { Router, type Request, type Response, type NextFunction } from "express";
+import multer from "multer";
 import { requireAuth } from "../../middleware/auth.middleware";
 import { requirePermission } from "../../middleware/role.middleware";
 import {
@@ -27,6 +28,45 @@ import { questMediaUpload } from "./quest-media.upload";
 import { SITE_PERMISSIONS } from "../../common/security/permissions";
 
 const router = Router();
+
+/**
+ * Gestionnaire d'upload des médias de quêtes.
+ * Multer s'exécute avant le contrôleur : ses erreurs doivent donc être
+ * converties ici en réponses HTTP explicites plutôt qu'en 500 génériques.
+ */
+function questMediaUploadMiddleware(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
+  questMediaUpload.single("image")(req, res, (error) => {
+    if (!error) {
+      return next();
+    }
+
+    if (error instanceof multer.MulterError) {
+      if (error.code === "LIMIT_FILE_SIZE") {
+        return res.status(413).json({
+          success: false,
+          message: "L'image est trop volumineuse. La taille maximale autorisée est de 10 Mo.",
+        });
+      }
+
+      return res.status(400).json({
+        success: false,
+        message: `Erreur lors de l'envoi de l'image (${error.code}).`,
+      });
+    }
+
+    return res.status(400).json({
+      success: false,
+      message:
+        error instanceof Error
+          ? error.message
+          : "Impossible d'envoyer l'image.",
+    });
+  });
+}
 
 router.use(requireAuth);
 
