@@ -447,6 +447,13 @@ export class QuestsService {
           continue;
         }
 
+        // Un événement ne doit jamais faire progresser une étape encore verrouillée.
+        // On l'ignore simplement : elle sera prise en compte lorsqu'elle deviendra
+        // effectivement accessible.
+        if (!this.isObjectiveUnlocked(quest, userQuest, objective.objectiveId)) {
+          continue;
+        }
+
         await this.updateProgress(
           event.userId,
           quest.questId,

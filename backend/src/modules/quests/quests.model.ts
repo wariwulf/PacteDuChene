@@ -1,11 +1,7 @@
 import mongoose, { Schema } from "mongoose";
-import {
-  QuestDocument,
-  QuestObjective,
-  UserQuestDocument,
-} from "./quests.types";
+import { QuestDocument, UserQuestDocument } from "./quests.types";
 
-const questObjectiveSchema = new Schema<QuestObjective>(
+const questObjectiveSchema = new Schema(
   {
     objectiveId: { type: String, required: true, trim: true },
     name: { type: String, required: true, trim: true },
@@ -24,66 +20,30 @@ const questStepSchema = new Schema(
     name: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
     imageUrl: { type: String, trim: true },
-    // Les anciennes étapes sans ce champ restent traitées comme dépendantes
-    // côté service pour préserver un enchaînement naturel.
+    difficulty: { type: Number, required: true, default: 1, min: 1, max: 5 },
+    // Les étapes historiques sans ce champ restent dépendantes par défaut.
     requiresPreviousStep: { type: Boolean, default: true },
-    difficulty: {
-      type: Number,
-      required: true,
-      default: 1,
-      min: 1,
-      max: 5,
-    },
-    objectives: {
-      type: [questObjectiveSchema],
-      required: true,
-      default: [],
-    },
+    objectives: { type: [questObjectiveSchema], required: true, default: [] },
   },
   { _id: false }
 );
 
 const questSchema = new Schema<QuestDocument>(
   {
-    questId: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-    },
+    questId: { type: String, required: true, unique: true, trim: true },
     name: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
     imageUrl: { type: String, trim: true },
-    difficulty: {
-      type: Number,
-      required: true,
-      default: 1,
-      min: 1,
-      max: 5,
-    },
+    difficulty: { type: Number, required: true, default: 1, min: 1, max: 5 },
     prerequisites: { type: [String], default: [] },
     steps: { type: [questStepSchema], default: [] },
-    objectives: {
-      type: [questObjectiveSchema],
-      required: true,
-      default: [],
-    },
-    rewardXp: {
-      type: Number,
-      required: true,
-      default: 0,
-      min: 0,
-    },
+    // Compatibilité avec le moteur de progression existant.
+    objectives: { type: [questObjectiveSchema], required: true, default: [] },
+    rewardXp: { type: Number, required: true, default: 0, min: 0 },
     rewardCurrencyId: { type: String, trim: true },
-    rewardAmount: {
-      type: Number,
-      required: true,
-      default: 0,
-      min: 0,
-    },
+    rewardAmount: { type: Number, required: true, default: 0, min: 0 },
     rewardAchievementId: { type: String, trim: true },
     enabled: { type: Boolean, default: true },
-    deletedAt: { type: Date, default: null, index: true },
   },
   { timestamps: true }
 );
@@ -94,24 +54,12 @@ const userQuestObjectiveSchema = new Schema(
     current: { type: Number, required: true, default: 0, min: 0 },
     validationStatus: {
       type: String,
-      enum: [
-        "not_required",
-        "not_submitted",
-        "pending",
-        "approved",
-        "rejected",
-      ],
+      enum: ["not_required", "not_submitted", "pending", "approved", "rejected"],
       default: "not_required",
     },
-    lastSubmissionId: {
-      type: Schema.Types.ObjectId,
-      ref: "QuestSubmission",
-    },
-    validationMessage: {
-      type: String,
-      trim: true,
-    },
-    validatedAt: Date,
+    lastSubmissionId: { type: String },
+    validationMessage: { type: String },
+    validatedAt: { type: Date },
   },
   { _id: false }
 );
@@ -120,16 +68,8 @@ const userQuestSchema = new Schema<UserQuestDocument>(
   {
     userId: { type: String, required: true, index: true },
     questId: { type: String, required: true, index: true },
-    objectives: {
-      type: [userQuestObjectiveSchema],
-      required: true,
-      default: [],
-    },
-    status: {
-      type: String,
-      enum: ["active", "completed"],
-      default: "active",
-    },
+    objectives: { type: [userQuestObjectiveSchema], required: true, default: [] },
+    status: { type: String, enum: ["active", "completed"], default: "active" },
     completionProcessing: { type: Boolean, default: false },
     startedAt: { type: Date, default: Date.now },
     completedAt: { type: Date },
@@ -137,17 +77,7 @@ const userQuestSchema = new Schema<UserQuestDocument>(
   { timestamps: true }
 );
 
-userQuestSchema.index(
-  { userId: 1, questId: 1 },
-  { unique: true }
-);
+userQuestSchema.index({ userId: 1, questId: 1 }, { unique: true });
 
-export const Quest = mongoose.model<QuestDocument>(
-  "Quest",
-  questSchema
-);
-
-export const UserQuest = mongoose.model<UserQuestDocument>(
-  "UserQuest",
-  userQuestSchema
-);
+export const Quest = mongoose.model<QuestDocument>("Quest", questSchema);
+export const UserQuest = mongoose.model<UserQuestDocument>("UserQuest", userQuestSchema);

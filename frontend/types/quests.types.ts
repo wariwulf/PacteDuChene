@@ -21,8 +21,7 @@ export interface QuestStep {
   description?: string;
   imageUrl?: string;
   difficulty: number;
-  /** Si true (valeur par défaut pour les étapes après la première),
-   * l'étape précédente doit être terminée avant d'accéder à celle-ci. */
+  /** Toute étape après la première dépend de la précédente. */
   requiresPreviousStep?: boolean;
   objectives: QuestObjective[];
 }
