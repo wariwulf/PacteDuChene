@@ -31,6 +31,7 @@ import {
   type ClanEventType,
   type CurrencyId,
   type ParticipationOptions,
+  type ObjectiveValidationStatus,
   type Recurrence,
 } from "@/services/clan-events.service";
 
