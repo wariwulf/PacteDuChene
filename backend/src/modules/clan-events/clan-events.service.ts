@@ -1,10 +1,12 @@
 import { clanEventsRepository } from "./clan-events.repository";
 import { EventParticipation } from "./clan-events.model";
 import { findByDiscordId, findByMemberId } from "../discord/discord.repository";
-import type { ClanEventData, ClanEventType, ParticipationStatus, RecurrenceData, EventRewardData, CreateClanEventData } from "./clan-events.types";
+import type { ClanEventData, ClanEventType, ParticipationStatus, RecurrenceData, CreateClanEventData, EventObjectiveData } from "./clan-events.types";
 import { economyService } from "../economy/economy.service";
 import { levelsService } from "../levels/levels.service";
 import { randomBytes } from "node:crypto";
+import { User } from "../users/user.model";
+import type { AttendanceStatus, RewardGrantData, AdminEventParticipantData } from "./clan-events.types";
 
 const EVENT_TYPES: ClanEventType[] = ["COLLECTE","COMBAT","CEREMONIE","REUNION","SORTIE","AUTRE"];
 const PARTICIPATION_STATUSES: ParticipationStatus[] = ["ACCEPTED","MAYBE","DECLINED"];
@@ -67,8 +69,15 @@ export class ClanEventsService {
     if (data.endsAt !== undefined && data.endsAt && Number.isNaN(new Date(data.endsAt).getTime())) throw new Error("La date de fin est invalide.");
 
     const merged = { ...current.toObject(), ...data } as ClanEventData;
-    this.validateEvent(merged, true);
+    if (data.objectives !== undefined) {
+      merged.objectives = this.mergeObjectiveStates(
+        current.objectives ?? [],
+        data.objectives ?? [],
+      );
+    }
+    this.validateEvent(merged, true, data.rewards !== undefined);
     const normalized: Partial<ClanEventData> = { ...data };
+    if (data.objectives !== undefined) normalized.objectives = merged.objectives;
     if (data.startsAt || data.endsAt || data.durationMinutes !== undefined) {
       const n = this.normalizeEvent(merged);
       normalized.startsAt = n.startsAt;
@@ -89,7 +98,18 @@ export class ClanEventsService {
       normalized.discordReminderMessageId = undefined;
       normalized.discordReminderThreadId = undefined;
     }
-    return clanEventsRepository.update(eventId, normalized);
+    const updated = await clanEventsRepository.update(eventId, normalized);
+    if (data.objectives !== undefined || data.rewards !== undefined) {
+      const participations = await clanEventsRepository.findParticipationsByEventId(eventId);
+      for (const participation of participations) {
+        const participantId = String(participation.memberId);
+        await this.syncRewardGrantsForEvent(updated ?? merged, participantId);
+        if (participation.attendance === "PRESENT") {
+          await this.grantEligibleRewards(eventId, participantId, "system");
+        }
+      }
+    }
+    return updated;
   }
 
   async remove(eventId: string) {
@@ -171,7 +191,8 @@ export class ClanEventsService {
   async botCleanupComplete(eventId: string) {
     const event = await clanEventsRepository.findByEventId(eventId);
     if (!event) throw new Error("Événement introuvable.");
-    await this.grantRewards(eventId);
+    // Les récompenses sont désormais attribuées manuellement par participant et objectif.
+    // Le nettoyage Discord ne doit jamais distribuer automatiquement une récompense.
     const archived = await clanEventsRepository.archive(eventId);
     if (event.recurrence?.enabled) await this.createNextOccurrence(event);
     return archived;
@@ -213,50 +234,264 @@ export class ClanEventsService {
     };
   }
 
-  async grantRewards(eventId: string) {
+  async listAdminParticipants(eventId: string): Promise<AdminEventParticipantData[]> {
     const event = await clanEventsRepository.findByEventId(eventId);
-    if (!event) throw new Error("Événement introuvable.");
+    if (!event || event.status === "ARCHIVED") throw new Error("Événement introuvable.");
 
-    const participants = await EventParticipation.find({
-      eventId,
-      status: "ACCEPTED",
+    const participations = await clanEventsRepository.findParticipationsByEventId(eventId);
+    const members = await User.find({
+      _id: { $in: participations.map((p) => p.memberId) },
+      status: { $ne: "DELETED" },
+    }).lean();
+
+    const byId = new Map(members.map((m: any) => [String(m._id), m]));
+    return participations.map((p: any) => {
+      const m = byId.get(String(p.memberId));
+      return {
+        ...p.toObject(),
+        attendance: p.attendance ?? "PENDING",
+        rewardGrants: p.rewardGrants ?? [],
+        member: m ? {
+          id: String(m._id),
+          username: m.profile?.username ?? "",
+          displayName: m.profile?.displayName,
+          characterName: m.paxDei?.characterName,
+          avatar: m.profile?.avatar,
+          discordUsername: m.discord?.username,
+        } : undefined,
+      };
     });
+  }
 
-    const rewards = event.rewards ?? [];
-    const granted: Array<{ memberId: string; reward: EventRewardData }> = [];
+  async listAdminMembers(eventId: string) {
+    await this.getManageableEvent(eventId);
+    const participations = await clanEventsRepository.findParticipationsByEventId(eventId);
+    const excluded = participations.map((p: any) => String(p.memberId));
+    return User.find({
+      _id: { $nin: excluded },
+      status: "ACTIVE",
+    }).select("_id profile discord paxDei").sort({ "profile.displayName": 1, "profile.username": 1 }).lean();
+  }
 
-    for (const participant of participants) {
-      for (const reward of rewards) {
-        if (reward.amount <= 0) continue;
+  async addAdminParticipant(eventId: string, memberId: string) {
+    const event = await this.getManageableEvent(eventId);
+    const member = await User.findOne({ _id: memberId, status: "ACTIVE" }).lean();
+    if (!member) throw new Error("Membre introuvable ou inactif.");
 
-        const description =
-          reward.label ||
-          `Récompense de l'événement « ${event.title} »`;
+    await clanEventsRepository.createAdminParticipation(eventId, memberId);
+    await this.syncRewardGrantsForEvent(event, memberId);
+    await this.syncDiscord(eventId);
+    return clanEventsRepository.getParticipation(eventId, memberId);
+  }
 
-        if (reward.currencyId === "xp") {
-          await levelsService.addXp(
-            participant.memberId,
-            reward.amount,
-            "EVENT",
-            description,
-            `${eventId}:${reward.rewardId}`,
-          );
-        } else {
-          await economyService.addEventReward(
-            participant.memberId,
-            reward.currencyId,
-            reward.amount,
-            eventId,
-            reward.rewardId,
-            description,
-          );
-        }
+  async removeAdminParticipant(eventId: string, memberId: string) {
+    await this.getManageableEvent(eventId);
+    const participation = await clanEventsRepository.getParticipation(eventId, memberId);
+    if (!participation) throw new Error("Participant introuvable.");
+    if ((participation.rewardGrants ?? []).some((r: any) => r.status === "GRANTED")) {
+      throw new Error("Impossible de retirer un participant ayant déjà reçu une récompense.");
+    }
+    await clanEventsRepository.removeParticipation(eventId, memberId);
+    await this.syncDiscord(eventId);
+    return { memberId };
+  }
 
-        granted.push({ memberId: participant.memberId, reward });
+  async setAttendance(eventId: string, memberId: string, attendance: AttendanceStatus, _actorId: string) {
+    await this.getManageableEvent(eventId);
+    if (!["PENDING", "PRESENT", "ABSENT"].includes(attendance)) throw new Error("Statut de présence invalide.");
+    const participation = await clanEventsRepository.getParticipation(eventId, memberId);
+    if (!participation) throw new Error("Participant introuvable.");
+    const updated = await clanEventsRepository.setAttendance(eventId, memberId, attendance);
+    if (updated && attendance === "PRESENT") {
+      await this.grantEligibleRewards(eventId, memberId, _actorId);
+    }
+    return clanEventsRepository.getParticipation(eventId, memberId);
+  }
+
+  async setObjectiveValidation(
+    eventId: string,
+    objectiveId: string,
+    status: "PENDING" | "VALIDATED" | "REJECTED",
+    actorId: string,
+  ) {
+    const event = await this.getManageableEvent(eventId);
+    if (!["PENDING", "VALIDATED", "REJECTED"].includes(status)) {
+      throw new Error("Statut d'objectif invalide.");
+    }
+
+    const objective = (event.objectives ?? []).find(
+      (item: any) => item.objectiveId === objectiveId,
+    );
+    if (!objective) throw new Error("Objectif introuvable pour cet événement.");
+
+    if (status === "REJECTED") {
+      const participations = await clanEventsRepository.findParticipationsByEventId(eventId);
+      const grantedRewardIds = new Set(
+        participations.flatMap((participation: any) =>
+          (participation.rewardGrants ?? [])
+            .filter((grant: any) => grant.status === "GRANTED")
+            .map((grant: any) => grant.rewardId),
+        ),
+      );
+      const hasGrantedReward = (event.rewards ?? []).some(
+        (reward: any) =>
+          reward.objectiveId === objectiveId &&
+          grantedRewardIds.has(reward.rewardId),
+      );
+      if (hasGrantedReward) {
+        throw new Error("Impossible de rejeter un objectif dont une récompense a déjà été attribuée.");
       }
     }
 
-    return granted;
+    const updated = await clanEventsRepository.setObjectiveValidation(
+      eventId,
+      objectiveId,
+      status,
+      status === "PENDING" ? undefined : new Date(),
+      status === "PENDING" ? undefined : actorId,
+    );
+
+    if (status === "VALIDATED") {
+      const participations = await clanEventsRepository.findParticipationsByEventId(eventId);
+      for (const participation of participations) {
+        if (participation.attendance === "PRESENT") {
+          await this.grantEligibleRewards(eventId, String(participation.memberId), actorId);
+        }
+      }
+    }
+
+    return clanEventsRepository.findByEventId(eventId) ?? updated;
+  }
+
+  /**
+   * Attribution automatique : une récompense est créditée lorsqu'un participant
+   * est réellement présent et que l'objectif auquel la récompense est liée est validé.
+   */
+  private async grantEligibleRewards(eventId: string, memberId: string, actorId: string) {
+    const event = await this.getManageableEvent(eventId);
+    const participation = await clanEventsRepository.getParticipation(eventId, memberId);
+    if (!participation || participation.attendance !== "PRESENT") return participation;
+
+    await this.syncRewardGrantsForEvent(event, memberId);
+    const fresh = await clanEventsRepository.getParticipation(eventId, memberId);
+    if (!fresh) return null;
+
+    for (const reward of event.rewards ?? []) {
+      if (reward.amount <= 0 || !reward.objectiveId) continue;
+
+      const objective = (event.objectives ?? []).find(
+        (item: any) => item.objectiveId === reward.objectiveId,
+      );
+      if (objective?.status !== "VALIDATED") continue;
+
+      const grant = (fresh.rewardGrants ?? []).find(
+        (item: any) => item.rewardId === reward.rewardId,
+      );
+      if (grant?.status === "GRANTED") continue;
+
+      const description = reward.label || `Récompense de l'événement « ${event.title} »`;
+
+      if (reward.currencyId === "xp") {
+        await levelsService.addXp(
+          memberId,
+          reward.amount,
+          "EVENT",
+          description,
+          `${eventId}:${reward.rewardId}`,
+        );
+      } else {
+        await economyService.addEventReward(
+          memberId,
+          reward.currencyId,
+          reward.amount,
+          eventId,
+          reward.rewardId,
+          description,
+        );
+      }
+
+      await clanEventsRepository.setRewardGranted(
+        eventId,
+        memberId,
+        reward.rewardId,
+        actorId,
+      );
+    }
+
+    return clanEventsRepository.getParticipation(eventId, memberId);
+  }
+
+  async grantReward(eventId: string, memberId: string, rewardId: string, actorId: string) {
+    const event = await this.getManageableEvent(eventId);
+    const reward = (event.rewards ?? []).find((item: any) => item.rewardId === rewardId);
+    if (!reward) throw new Error("Récompense introuvable pour cet événement.");
+    if (!reward.objectiveId) throw new Error("Cette récompense n'est liée à aucun objectif.");
+    await this.grantEligibleRewards(eventId, memberId, actorId);
+    return clanEventsRepository.getParticipation(eventId, memberId);
+  }
+
+  /**
+   * Ancienne opération globale conservée uniquement pour compatibilité API.
+   * Elle ne distribue plus rien automatiquement : les récompenses doivent être
+   * attribuées individuellement via grantReward().
+   */
+  async grantRewards(eventId: string) {
+    await this.getManageableEvent(eventId);
+    return [];
+  }
+
+  private async getManageableEvent(eventId: string) {
+    const event = await clanEventsRepository.findByEventId(eventId);
+    if (!event || event.status === "ARCHIVED") throw new Error("Événement introuvable.");
+    return event;
+  }
+
+  private async syncRewardGrantsForEvent(event: any, memberId: string) {
+    const participation = await clanEventsRepository.getParticipation(event.eventId, memberId);
+    if (!participation) return null;
+
+    const existingRewards = new Map<string, RewardGrantData>(
+      (participation.rewardGrants ?? []).map(
+        (reward: RewardGrantData) => [reward.rewardId, reward],
+      ),
+    );
+
+    const rewardGrants: RewardGrantData[] = (event.rewards ?? []).map((reward: any) => {
+      const current = existingRewards.get(reward.rewardId);
+      return current
+        ? {
+            rewardId: reward.rewardId,
+            status: current.status,
+            grantedAt: current.grantedAt,
+            grantedBy: current.grantedBy,
+          }
+        : { rewardId: reward.rewardId, status: "PENDING" };
+    });
+
+    return clanEventsRepository.syncRewardGrants(
+      event.eventId,
+      memberId,
+      rewardGrants,
+    );
+  }
+
+  private mergeObjectiveStates(
+    previous: EventObjectiveData[],
+    next: EventObjectiveData[],
+  ): EventObjectiveData[] {
+    const previousById = new Map<string, any>(
+      previous.map((objective: any) => [objective.objectiveId, objective]),
+    );
+
+    return next.map((objective) => {
+      const old = previousById.get(objective.objectiveId);
+      return {
+        ...objective,
+        status: old?.status ?? "PENDING",
+        validatedAt: old?.validatedAt,
+        validatedBy: old?.validatedBy,
+      } as EventObjectiveData;
+    });
   }
 
   private normalizeEvent(data: ClanEventData): ClanEventData {
@@ -270,14 +505,17 @@ export class ClanEventsService {
       endsAt,
       durationMinutes: duration,
       participationOptions: data.participationOptions ?? { accepted: true, declined: true, maybe: true, attempts: false },
-      objectives: data.objectives ?? [],
+      objectives: (data.objectives ?? []).map((objective: any) => ({
+        ...objective,
+        status: objective.status ?? "PENDING",
+      })),
       rewards: data.rewards ?? [],
       recurrence: data.recurrence ?? { enabled: false },
       cleanupAt: new Date(endsAt.getTime() + TWO_HOURS),
     };
   }
 
-  private validateEvent(data: ClanEventData, partial = false) {
+  private validateEvent(data: ClanEventData, partial = false, strictRewards = !partial) {
     if (!partial && !data.eventId?.trim()) throw new Error("L'identifiant de l'événement est obligatoire.");
     if (!data.title?.trim()) throw new Error("Le titre de l'événement est obligatoire.");
     if (Number.isNaN(new Date(data.startsAt).getTime())) throw new Error("La date de début est invalide.");
@@ -286,7 +524,13 @@ export class ClanEventsService {
     if (data.type && !EVENT_TYPES.includes(data.type)) throw new Error("Type d'événement invalide.");
     if (data.durationMinutes !== undefined && (!Number.isFinite(data.durationMinutes) || data.durationMinutes <= 0)) throw new Error("La durée doit être supérieure à 0.");
     if (data.reminderMinutes !== undefined && (!Number.isFinite(data.reminderMinutes) || data.reminderMinutes < 0)) throw new Error("Le rappel doit être un nombre positif ou nul.");
-    for (const reward of data.rewards ?? []) if (!Number.isFinite(reward.amount) || reward.amount < 0) throw new Error("Une récompense est invalide.");
+    const objectiveIds = new Set((data.objectives ?? []).map((o) => o.objectiveId));
+    if (!strictRewards) return;
+    for (const reward of data.rewards ?? []) {
+      if (!Number.isFinite(reward.amount) || reward.amount < 0) throw new Error("Une récompense est invalide.");
+      if (!reward.objectiveId) throw new Error("Chaque récompense doit être liée à un objectif.");
+      if (!objectiveIds.has(reward.objectiveId)) throw new Error("Une récompense référence un objectif inexistant.");
+    }
   }
 
   private async withMemberParticipation(event: any, memberId: string) {

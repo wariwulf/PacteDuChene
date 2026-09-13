@@ -6,6 +6,7 @@ export const SITE_PERMISSIONS = {
   ECONOMY_ADJUST: "economy.adjust",
   NEWS_MANAGE: "news.manage",
   ECONOMY_EXCHANGE_RATES_MANAGE: "economy.exchangeRates.manage",
+  CLAN_EVENTS_MANAGE: "clan-events.manage",
 } as const;
 
 export type SitePermission =
@@ -17,6 +18,7 @@ export const ALL_SITE_PERMISSIONS: readonly SitePermission[] = [
   SITE_PERMISSIONS.ECONOMY_ADJUST,
   SITE_PERMISSIONS.NEWS_MANAGE,
   SITE_PERMISSIONS.ECONOMY_EXCHANGE_RATES_MANAGE,
+  SITE_PERMISSIONS.CLAN_EVENTS_MANAGE,
 ];
 
 /** Rôles Discord qui donnent automatiquement les droits de chef de faction. */
@@ -31,6 +33,7 @@ export const FACTION_LEADER_PERMISSIONS: readonly SitePermission[] = [
   SITE_PERMISSIONS.ACHIEVEMENTS_MANAGE,
   SITE_PERMISSIONS.ECONOMY_ADJUST,
   SITE_PERMISSIONS.NEWS_MANAGE,
+  SITE_PERMISSIONS.CLAN_EVENTS_MANAGE,
 ];
 
 export function permissionsForSiteRole(

@@ -4,6 +4,7 @@ export const SITE_PERMISSIONS = {
   ECONOMY_ADJUST: "economy.adjust",
   NEWS_MANAGE: "news.manage",
   ECONOMY_EXCHANGE_RATES_MANAGE: "economy.exchangeRates.manage",
+  CLAN_EVENTS_MANAGE: "clan-events.manage",
 } as const;
 
 export type SitePermission =

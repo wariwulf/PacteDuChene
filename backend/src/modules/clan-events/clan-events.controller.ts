@@ -1,7 +1,10 @@
 import type { Response } from "express";
 import type { AuthenticatedRequest } from "../../middleware/auth.middleware";
 import { clanEventsService } from "./clan-events.service";
-import type { ClanEventStatus, ClanEventType, ParticipationStatus } from "./clan-events.types";
+import type {
+  ClanEventStatus, ParticipationStatus, AttendanceStatus,
+  ObjectiveValidationStatus,
+} from "./clan-events.types";
 
 function param(v: string | string[] | undefined) { return Array.isArray(v) ? (v[0] ?? "") : (v ?? ""); }
 function userId(req: AuthenticatedRequest) { if (!req.user?.id) throw new Error("Authentification requise."); return req.user.id; }
@@ -25,8 +28,43 @@ function buildData(body:any, partial=false) {
 export async function createAdmin(req:AuthenticatedRequest,res:Response){try{const body=req.body??{};const event=await clanEventsService.create({...buildData(body),status:(body.status??"PUBLISHED") as ClanEventStatus} as any,userId(req));return res.status(201).json({success:true,data:event});}catch(e){return res.status(400).json({success:false,message:message(e,"Impossible de créer l'événement.")});}}
 export async function updateAdmin(req:AuthenticatedRequest,res:Response){try{return res.json({success:true,data:await clanEventsService.update(param(req.params.eventId),buildData(req.body??{},true))});}catch(e){const m=message(e,"Impossible de modifier l'événement.");return res.status(m.includes("introuvable")?404:400).json({success:false,message:m});}}
 export async function syncDiscord(req:AuthenticatedRequest,res:Response){try{return res.json({success:true,data:await clanEventsService.syncDiscord(param(req.params.eventId))});}catch(e){const m=message(e,"Impossible de demander la synchronisation Discord.");return res.status(m.includes("introuvable")?404:400).json({success:false,message:m});}}
-
 export async function deleteAdmin(req:AuthenticatedRequest,res:Response){try{return res.json({success:true,data:await clanEventsService.remove(param(req.params.eventId))});}catch(e){return res.status(400).json({success:false,message:message(e,"Impossible de supprimer l'événement.")});}}
+
+export async function listAdminParticipants(req:AuthenticatedRequest,res:Response){
+  try { return res.json({success:true,data:await clanEventsService.listAdminParticipants(param(req.params.eventId))}); }
+  catch(e){ const m=message(e,"Impossible de charger les participants."); return res.status(m.includes("introuvable")?404:400).json({success:false,message:m}); }
+}
+export async function listAdminMembers(req:AuthenticatedRequest,res:Response){
+  try { return res.json({success:true,data:await clanEventsService.listAdminMembers(param(req.params.eventId))}); }
+  catch(e){ const m=message(e,"Impossible de charger les membres."); return res.status(m.includes("introuvable")?404:400).json({success:false,message:m}); }
+}
+export async function addAdminParticipant(req:AuthenticatedRequest,res:Response){
+  try { return res.status(201).json({success:true,data:await clanEventsService.addAdminParticipant(param(req.params.eventId),String(req.body?.memberId??""))}); }
+  catch(e){ return res.status(400).json({success:false,message:message(e,"Impossible d'ajouter le participant.")}); }
+}
+export async function removeAdminParticipant(req:AuthenticatedRequest,res:Response){
+  try { return res.json({success:true,data:await clanEventsService.removeAdminParticipant(param(req.params.eventId),param(req.params.memberId))}); }
+  catch(e){ return res.status(400).json({success:false,message:message(e,"Impossible de retirer le participant.")}); }
+}
+export async function setAdminAttendance(req:AuthenticatedRequest,res:Response){
+  try { return res.json({success:true,data:await clanEventsService.setAttendance(param(req.params.eventId),param(req.params.memberId),req.body?.attendance as AttendanceStatus,userId(req))}); }
+  catch(e){ return res.status(400).json({success:false,message:message(e,"Impossible de modifier la présence.")}); }
+}
+export async function setAdminObjectiveValidation(req:AuthenticatedRequest,res:Response){
+  try {
+    return res.json({
+      success:true,
+      data:await clanEventsService.setObjectiveValidation(
+        param(req.params.eventId),
+        param(req.params.objectiveId),
+        req.body?.status as ObjectiveValidationStatus,
+        userId(req),
+      ),
+    });
+  } catch(e){
+    return res.status(400).json({success:false,message:message(e,"Impossible de modifier la validation de l'objectif.")});
+  }
+}
 
 export async function uploadImage(req: AuthenticatedRequest, res: Response) {
   try {
@@ -40,7 +78,6 @@ export async function uploadImage(req: AuthenticatedRequest, res: Response) {
 
 export async function botActions(_req:AuthenticatedRequest,res:Response){try{return res.json({success:true,data:await clanEventsService.getBotActions()});}catch(e){return res.status(500).json({success:false,message:message(e,"Impossible de préparer les actions Discord.")});}}
 export async function botEvent(req:AuthenticatedRequest,res:Response){try{return res.json({success:true,data:await clanEventsService.botEvent(param(req.params.eventId))});}catch(e){return res.status(404).json({success:false,message:message(e,"Événement introuvable.")});}}
-
 export async function botActive(_req:AuthenticatedRequest,res:Response){try{return res.json({success:true,data:await clanEventsService.botActive()});}catch(e){return res.status(500).json({success:false,message:message(e,"Impossible de charger les événements Discord.")});}}
 export async function botPublished(req:AuthenticatedRequest,res:Response){try{return res.json({success:true,data:await clanEventsService.botPublished(param(req.params.eventId),String(req.body?.guildId??""),String(req.body?.channelId??""),String(req.body?.messageId??""))});}catch(e){return res.status(400).json({success:false,message:message(e,"Impossible d'enregistrer la publication.")});}}
 export async function botReminderSent(req:AuthenticatedRequest,res:Response){try{return res.json({success:true,data:await clanEventsService.botReminderSent(param(req.params.eventId),String(req.body?.messageId??""))});}catch(e){return res.status(400).json({success:false,message:message(e,"Impossible d'enregistrer le rappel.")});}}

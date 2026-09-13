@@ -1,7 +1,8 @@
 import mongoose, { Document, Schema } from "mongoose";
 import type {
   ClanEventData, ParticipationData, ClanEventType, ClanEventStatus,
-  ParticipationStatus, ClanEventMode, RecurrenceFrequency,
+  ParticipationStatus, ClanEventMode, AttendanceStatus,
+  ObjectiveValidationStatus, RewardGrantStatus,
 } from "./clan-events.types";
 
 export type ClanEventDocument = ClanEventData & Document;
@@ -12,10 +13,14 @@ const objectiveSchema = new Schema({
   title: { type: String, required: true, trim: true, maxlength: 160 },
   description: { type: String, default: "", maxlength: 2000 },
   required: { type: Boolean, default: true },
+  status: { type: String, enum: ["PENDING", "VALIDATED", "REJECTED"] satisfies ObjectiveValidationStatus[], default: "PENDING" },
+  validatedAt: { type: Date },
+  validatedBy: { type: String },
 }, { _id: false });
 
 const rewardSchema = new Schema({
   rewardId: { type: String, required: true },
+  objectiveId: { type: String },
   currencyId: { type: String, enum: ["solidus", "argent", "bronze", "xp"], required: true },
   amount: { type: Number, required: true, min: 0 },
   label: { type: String, default: "", maxlength: 200 },
@@ -38,6 +43,13 @@ const recurrenceSchema = new Schema({
   nthWeek: { type: Number, min: 1, max: 5 },
   nthWeekday: { type: Number, min: 0, max: 6 },
   until: { type: Date },
+}, { _id: false });
+
+const rewardGrantSchema = new Schema({
+  rewardId: { type: String, required: true },
+  status: { type: String, enum: ["PENDING", "GRANTED"] satisfies RewardGrantStatus[], default: "PENDING" },
+  grantedAt: { type: Date },
+  grantedBy: { type: String },
 }, { _id: false });
 
 const clanEventSchema = new Schema<ClanEventDocument>({
@@ -70,7 +82,6 @@ const clanEventSchema = new Schema<ClanEventDocument>({
   publishedAt: { type: Date },
   archivedAt: { type: Date },
   cleanupAt: { type: Date },
-  // Signal explicite pour demander au bot de resynchroniser le message Discord.
   discordSyncAt: { type: Date },
 }, { timestamps: true });
 
@@ -78,6 +89,8 @@ const participationSchema = new Schema<EventParticipationDocument>({
   eventId: { type: String, required: true, index: true },
   memberId: { type: String, required: true, index: true },
   status: { type: String, enum: ["ACCEPTED","MAYBE","DECLINED"] satisfies ParticipationStatus[], required: true },
+  attendance: { type: String, enum: ["PENDING","PRESENT","ABSENT"] satisfies AttendanceStatus[], default: "PENDING" },
+  rewardGrants: { type: [rewardGrantSchema], default: [] },
   attemptsUsed: { type: Number, min: 0, default: 0 },
 }, { timestamps: true });
 participationSchema.index({ eventId: 1, memberId: 1 }, { unique: true });

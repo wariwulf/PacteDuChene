@@ -4,6 +4,9 @@ export type ClanEventType =
 export type ClanEventMode = "INSTANT" | "LONG";
 export type ClanEventStatus = "PUBLISHED" | "CANCELLED" | "COMPLETED" | "ARCHIVED";
 export type ParticipationStatus = "ACCEPTED" | "MAYBE" | "DECLINED";
+export type AttendanceStatus = "PENDING" | "PRESENT" | "ABSENT";
+export type ObjectiveValidationStatus = "PENDING" | "VALIDATED" | "REJECTED";
+export type RewardGrantStatus = "PENDING" | "GRANTED";
 export type RecurrenceFrequency = "DAILY" | "WEEKLY" | "MONTHLY";
 
 export interface EventObjectiveData {
@@ -11,10 +14,14 @@ export interface EventObjectiveData {
   title: string;
   description?: string;
   required: boolean;
+  status?: ObjectiveValidationStatus;
+  validatedAt?: Date;
+  validatedBy?: string;
 }
 
 export interface EventRewardData {
   rewardId: string;
+  objectiveId?: string;
   currencyId: "solidus" | "argent" | "bronze" | "xp";
   amount: number;
   label?: string;
@@ -32,7 +39,7 @@ export interface RecurrenceData {
   enabled: boolean;
   frequency?: RecurrenceFrequency;
   interval?: number;
-  weekdays?: number[]; // 0 = dimanche ... 6 = samedi
+  weekdays?: number[];
   monthDay?: number;
   nthWeek?: 1 | 2 | 3 | 4 | 5;
   nthWeekday?: number;
@@ -77,18 +84,36 @@ export interface ClanEventData extends ClanEventInput {
   discordSyncAt?: Date;
 }
 
-export type CreateClanEventData = Omit<ClanEventData, "eventId"> & {
-  eventId?: string;
-};
+export type CreateClanEventData = Omit<ClanEventData, "eventId"> & { eventId?: string };
+
+export interface RewardGrantData {
+  rewardId: string;
+  status: RewardGrantStatus;
+  grantedAt?: Date;
+  grantedBy?: string;
+}
 
 export interface ParticipationData {
   eventId: string;
   memberId: string;
   status: ParticipationStatus;
+  attendance?: AttendanceStatus;
+  rewardGrants?: RewardGrantData[];
   attemptsUsed?: number;
   createdAt?: Date;
   updatedAt?: Date;
   discordSyncAt?: Date;
+}
+
+export interface AdminEventParticipantData extends ParticipationData {
+  member?: {
+    id: string;
+    username: string;
+    displayName?: string;
+    characterName?: string;
+    avatar?: string;
+    discordUsername?: string;
+  };
 }
 
 export interface ClanEventBotAction {

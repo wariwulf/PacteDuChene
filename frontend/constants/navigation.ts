@@ -131,11 +131,11 @@ export const administrationNavigation: NavigationItem[] = [
     access: "admin",
     adminOnly: true,
   },
-  {
+   {
     label: "Événements",
     href: "/administration/evenements",
     access: "admin",
-    adminOnly: true,
+    permission: "clan-events.manage",
   },
 ];
 
