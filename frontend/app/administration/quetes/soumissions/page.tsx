@@ -13,9 +13,20 @@ import {
 
 import QuestSubmissionReviewModal from "@/components/admin/QuestSubmissionReviewModal";
 
+type AdminQuestSubmission = QuestSubmission & {
+  member?: {
+    id: string;
+    username: string;
+    displayName?: string;
+    avatar?: string;
+    discordUsername?: string;
+    characterName?: string;
+  };
+};
+
 export default function QuestSubmissionsAdminPage() {
   const [submissions, setSubmissions] =
-    useState<QuestSubmission[]>([]);
+    useState<AdminQuestSubmission[]>([]);
 
   const [selected, setSelected] =
     useState<QuestSubmission | null>(null);
@@ -32,7 +43,7 @@ export default function QuestSubmissionsAdminPage() {
       setError("");
 
       setSubmissions(
-        await getPendingQuestSubmissions()
+        (await getPendingQuestSubmissions()) as AdminQuestSubmission[]
       );
     } catch (err) {
       setError(
@@ -117,7 +128,16 @@ export default function QuestSubmissionsAdminPage() {
                       <div className="mt-2 space-y-1 text-sm text-gray-400">
                         <p>
                           Membre :{" "}
-                          {submission.userId}
+                          <span className="font-semibold text-green-100">
+                            {submission.member?.displayName ||
+                              submission.member?.characterName ||
+                              submission.member?.username ||
+                              submission.member?.discordUsername ||
+                              "Membre introuvable"}
+                          </span>
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          ID : {submission.userId}
                         </p>
 
                         <p>

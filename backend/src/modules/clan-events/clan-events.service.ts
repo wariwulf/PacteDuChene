@@ -99,12 +99,32 @@ export class ClanEventsService {
       normalized.discordReminderThreadId = undefined;
     }
     const updated = await clanEventsRepository.update(eventId, normalized);
+
+    // Une fin manuelle de l'événement doit déclencher immédiatement
+    // l'attribution des récompenses éligibles.
+    // grantEligibleRewards vérifie la présence, la validation de l'objectif
+    // et empêche toute double attribution.
+    if (data.status === "COMPLETED") {
+      const participations =
+        await clanEventsRepository.findParticipationsByEventId(eventId);
+
+      for (const participation of participations) {
+        if (participation.status === "ACCEPTED") {
+          await this.grantEligibleRewards(
+            eventId,
+            String(participation.memberId),
+            "system",
+          );
+        }
+      }
+    }
+
     if (data.objectives !== undefined || data.rewards !== undefined) {
       const participations = await clanEventsRepository.findParticipationsByEventId(eventId);
       for (const participation of participations) {
         const participantId = String(participation.memberId);
         await this.syncRewardGrantsForEvent(updated ?? merged, participantId);
-        if (participation.attendance === "PRESENT") {
+        if (participation.status === "ACCEPTED") {
           await this.grantEligibleRewards(eventId, participantId, "system");
         }
       }
@@ -146,10 +166,17 @@ export class ClanEventsService {
     if (event.endsAt && event.endsAt.getTime() < now) throw new Error("L'événement est terminé.");
     const participation = await clanEventsRepository.upsertParticipation(eventId, memberId, status);
 
+    // La liste des participants fait foi pour la présence : ACCEPTED = présent.
+    // Si un objectif est déjà validé, la réponse ACCEPTED peut donc déclencher
+    // immédiatement la récompense correspondante.
+    if (status === "ACCEPTED") {
+      await this.grantEligibleRewards(eventId, memberId, "system");
+    }
+
     // Toute réponse doit signaler au bot Discord que le message doit être actualisé.
     await this.syncDiscord(eventId);
 
-    return participation;
+    return clanEventsRepository.getParticipation(eventId, memberId);
   }
 
   async setParticipationByDiscord(eventId: string, discordId: string, status: ParticipationStatus) {
@@ -280,6 +307,10 @@ export class ClanEventsService {
 
     await clanEventsRepository.createAdminParticipation(eventId, memberId);
     await this.syncRewardGrantsForEvent(event, memberId);
+
+    // Un participant ajouté manuellement est ACCEPTED par définition.
+    await this.grantEligibleRewards(eventId, memberId, "system");
+
     await this.syncDiscord(eventId);
     return clanEventsRepository.getParticipation(eventId, memberId);
   }
@@ -296,15 +327,19 @@ export class ClanEventsService {
     return { memberId };
   }
 
+  /**
+   * Compatibilité avec l'ancienne API de présence.
+   * La présence manuelle n'est plus utilisée par l'administration.
+   * La source de vérité est participation.status : ACCEPTED = présent.
+   */
   async setAttendance(eventId: string, memberId: string, attendance: AttendanceStatus, _actorId: string) {
     await this.getManageableEvent(eventId);
-    if (!["PENDING", "PRESENT", "ABSENT"].includes(attendance)) throw new Error("Statut de présence invalide.");
+    if (!["PENDING", "PRESENT", "ABSENT"].includes(attendance)) {
+      throw new Error("Statut de présence invalide.");
+    }
     const participation = await clanEventsRepository.getParticipation(eventId, memberId);
     if (!participation) throw new Error("Participant introuvable.");
-    const updated = await clanEventsRepository.setAttendance(eventId, memberId, attendance);
-    if (updated && attendance === "PRESENT") {
-      await this.grantEligibleRewards(eventId, memberId, _actorId);
-    }
+    await clanEventsRepository.setAttendance(eventId, memberId, attendance);
     return clanEventsRepository.getParticipation(eventId, memberId);
   }
 
@@ -354,7 +389,7 @@ export class ClanEventsService {
     if (status === "VALIDATED") {
       const participations = await clanEventsRepository.findParticipationsByEventId(eventId);
       for (const participation of participations) {
-        if (participation.attendance === "PRESENT") {
+        if (participation.status === "ACCEPTED") {
           await this.grantEligibleRewards(eventId, String(participation.memberId), actorId);
         }
       }
@@ -364,13 +399,15 @@ export class ClanEventsService {
   }
 
   /**
-   * Attribution automatique : une récompense est créditée lorsqu'un participant
-   * est réellement présent et que l'objectif auquel la récompense est liée est validé.
+   * Attribution automatique : ACCEPTED = présent.
+   * La récompense nécessite également que l'objectif lié soit VALIDATED.
+   * Le champ attendance est conservé pour compatibilité avec les anciennes données,
+   * mais n'est plus utilisé pour décider de l'éligibilité.
    */
   private async grantEligibleRewards(eventId: string, memberId: string, actorId: string) {
     const event = await this.getManageableEvent(eventId);
     const participation = await clanEventsRepository.getParticipation(eventId, memberId);
-    if (!participation || participation.attendance !== "PRESENT") return participation;
+    if (!participation || participation.status !== "ACCEPTED") return participation;
 
     await this.syncRewardGrantsForEvent(event, memberId);
     const fresh = await clanEventsRepository.getParticipation(eventId, memberId);
@@ -433,7 +470,7 @@ export class ClanEventsService {
   /**
    * Ancienne opération globale conservée uniquement pour compatibilité API.
    * Elle ne distribue plus rien automatiquement : les récompenses doivent être
-   * attribuées individuellement via grantReward().
+   * attribuées automatiquement selon la liste des participants et la validation des objectifs.
    */
   async grantRewards(eventId: string) {
     await this.getManageableEvent(eventId);

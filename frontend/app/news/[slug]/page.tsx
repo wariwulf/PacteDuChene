@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import PacteButton from "@/components/ui/PacteButton";
 
 interface NewsArticle {
   _id: string;
@@ -166,61 +167,29 @@ export default function ActualiteDetailPage() {
 
       <div className="relative z-10 mx-auto min-h-screen w-full max-w-7xl px-4 pb-24 pt-8 sm:px-8 lg:px-10">
         <div className="mx-auto max-w-[1120px]">
-          {/* Ornement réutilisable : plaque de bois fournie pour les actions de navigation. */}
-          <Link
+          <PacteButton
             href="/news"
-            aria-label="Retour aux actualités"
-            className="group relative ml-0 mt-3 block overflow-hidden transition duration-200 hover:brightness-110"
+            ariaLabel="Retour aux actualités"
+            className="relative -left-5"
+          >
+            Retour aux actualités
+          </PacteButton>
+
+          {/* Le parchemin sert de support visuel et s'étire avec le contenu.
+              Le texte n'est plus positionné en absolu sur une image à hauteur
+              fixe : le support graphique est placé derrière le contenu afin
+              que les actualités longues restent entièrement dans le parchemin. */}
+          <article
+            className="relative mx-auto mt-7 w-full max-w-[900px] overflow-hidden text-[#3b2816] drop-shadow-[0_24px_55px_rgba(0,0,0,.62)]"
             style={{
-              width: "500px",
-              maxWidth: "500px",
-              aspectRatio: "1027 / 199",
+              backgroundImage: "url('/images/news-parchment-pinned.png')",
+              backgroundSize: "100% 100%",
+              backgroundPosition: "center top",
+              backgroundRepeat: "no-repeat",
             }}
           >
-            <img
-              src="/images/decorations/button.png"
-              alt=""
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-0 z-0 block h-full w-full select-none object-fill"
-            />
-            <img
-              src="/images/pacte/carousel-arrow-left.png"
-              alt=""
-              aria-hidden="true"
-              className="pointer-events-none absolute left-[7%] top-1/2 z-30 h-11 w-auto -translate-y-1/2 object-contain transition-transform duration-200 group-hover:-translate-x-1"
-            />
-            <span
-              className="absolute inset-0 z-10 flex items-center justify-center pb-[1%] pl-[4%] font-serif text-[11px] font-semibold uppercase tracking-[0.13em] text-[#eadb80] transition-transform duration-200 group-hover:-translate-y-0.5"
-              style={{
-                fontFamily: "var(--font-cinzel), Georgia, serif",
-                textShadow: "rgba(0, 0, 0, 0.85) 0px 1px 2px",
-              }}
-            >
-              Retour aux actualités
-            </span>
-            <img
-              src="/images/member/arbre-pacte.png"
-              alt=""
-              aria-hidden="true"
-              className="pointer-events-none absolute right-[7%] top-1/2 z-30 h-11 w-auto -translate-y-1/2 object-contain opacity-90"
-            />
-          </Link>
-
-          {/* Le vrai parchemin graphique est utilisé comme support.
-              Le contenu HTML reste indépendant de l'image : il est donc
-              sélectionnable, responsive et parfaitement pilotable. */}
-          <article
-            className="relative mx-auto mt-7 w-full max-w-[900px] text-[#3b2816] drop-shadow-[0_24px_55px_rgba(0,0,0,.62)]"
-          >
-            <img
-              src="/images/news-parchment-pinned.png"
-              alt=""
-              aria-hidden="true"
-              className="pointer-events-none relative block h-auto w-full select-none"
-            />
-
             <div
-              className="absolute inset-0 z-10"
+              className="relative z-10"
               style={{
                 paddingLeft: "14%",
                 paddingRight: "14%",

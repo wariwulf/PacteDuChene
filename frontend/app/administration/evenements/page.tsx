@@ -9,7 +9,6 @@ import {
 
 import {
   addAdminClanEventParticipant,
-  AttendanceStatus,
   clanEventMediaUrl,
   createClanEvent,
   deleteClanEvent,
@@ -19,7 +18,6 @@ import {
   getAdminClanEventParticipants,
   getAdminClanEvents,
   removeAdminClanEventParticipant,
-  setAdminClanEventAttendance,
   setAdminClanEventObjectiveValidation,
   updateClanEvent,
   uploadClanEventImage,
@@ -104,11 +102,6 @@ const defaultForm = () => ({
   recurrence: { ...emptyRec },
 });
 
-const attendanceLabels: Record<AttendanceStatus, string> = {
-  PENDING: "En attente",
-  PRESENT: "Présent",
-  ABSENT: "Absent",
-};
 
 const objectiveLabels: Record<
   ObjectiveValidationStatus,
@@ -171,9 +164,6 @@ export default function AdministrationEvenementsPage() {
 
   const [participantError, setParticipantError] =
     useState("");
-
-  const [selectedParticipantId, setSelectedParticipantId] =
-    useState<string | null>(null);
 
   const [addingMemberId, setAddingMemberId] =
     useState("");
@@ -489,14 +479,12 @@ export default function AdministrationEvenementsPage() {
     eventId: string
   ) {
     setSelectedEventId(eventId);
-    setSelectedParticipantId(null);
     setAddingMemberId("");
     await loadParticipantData(eventId);
   }
 
   function closeParticipantManager() {
     setSelectedEventId(null);
-    setSelectedParticipantId(null);
     setParticipants([]);
     setMembers([]);
     setParticipantError("");
@@ -566,13 +554,6 @@ export default function AdministrationEvenementsPage() {
         participant.memberId
       );
 
-      if (
-        selectedParticipantId ===
-        participant.memberId
-      ) {
-        setSelectedParticipantId(null);
-      }
-
       await refreshParticipantData();
 
       setMessage("Participant retiré.");
@@ -581,36 +562,6 @@ export default function AdministrationEvenementsPage() {
         e instanceof Error
           ? e.message
           : "Impossible de retirer le participant."
-      );
-    } finally {
-      setParticipantAction("");
-    }
-  }
-
-  async function changeAttendance(
-    participant: AdminEventParticipant,
-    attendance: AttendanceStatus
-  ) {
-    if (!selectedEventId) return;
-
-    try {
-      setParticipantAction(
-        `attendance:${participant.memberId}`
-      );
-      setParticipantError("");
-
-      await setAdminClanEventAttendance(
-        selectedEventId,
-        participant.memberId,
-        attendance
-      );
-
-      await refreshParticipantData();
-    } catch (e) {
-      setParticipantError(
-        e instanceof Error
-          ? e.message
-          : "Impossible de modifier la présence."
       );
     } finally {
       setParticipantAction("");
@@ -1965,7 +1916,7 @@ export default function AdministrationEvenementsPage() {
                 </h2>
 
                 <p className="mt-1 text-sm text-green-400">
-                  Validation des objectifs et présence des participants
+                  Validation des objectifs et gestion des participants
                 </p>
               </div>
 
@@ -2061,8 +2012,8 @@ export default function AdministrationEvenementsPage() {
                 </h3>
                 <p className="mt-1 text-sm text-green-400">
                   Un objectif est validé une seule fois pour tout l'événement.
-                  Une récompense liée devient alors disponible automatiquement
-                  pour les participants réellement présents.
+                  Une récompense liée est attribuée automatiquement aux membres
+                  présents dans la liste des participants (réponse « Je participe »).
                 </p>
               </div>
 
@@ -2146,235 +2097,55 @@ export default function AdministrationEvenementsPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {participants.map(
-                    (participant) => {
-                      const isOpen =
-                        selectedParticipantId ===
-                        participant.memberId;
+                  {participants.map((participant) => {
+                    const isEligible = participant.status === "ACCEPTED";
 
-                      const attendance =
-                        participant.attendance ??
-                        "PENDING";
+                    return (
+                      <article
+                        key={participant.memberId}
+                        className="rounded-xl border border-green-800 bg-[#061a10] p-5"
+                      >
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                          <div>
+                            <h3 className="text-lg font-bold">
+                              {memberName(participant.member)}
+                            </h3>
 
-                      const rewardStates =
-                        participant.rewardGrants ??
-                        [];
+                            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                              <span className="rounded-full border border-green-700 px-3 py-1 text-green-300">
+                                Réponse : {participant.status}
+                              </span>
 
-                      return (
-                        <article
-                          key={
-                            participant.memberId
-                          }
-                          className="rounded-xl border border-green-800 bg-[#061a10] p-5"
-                        >
-                          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                            <div>
-                              <h3 className="text-lg font-bold">
-                                {memberName(
-                                  participant.member
-                                )}
-                              </h3>
-
-                              <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                                <span className="rounded-full border border-green-700 px-3 py-1 text-green-300">
-                                  Réponse :{" "}
-                                  {participant.status}
-                                </span>
-
-                                <span className="rounded-full border border-amber-700 px-3 py-1 text-amber-300">
-                                  Présence :{" "}
-                                  {
-                                    attendanceLabels[
-                                      attendance
-                                    ]
-                                  }
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="flex flex-wrap gap-2">
-                              <button
-                                onClick={() =>
-                                  setSelectedParticipantId(
-                                    isOpen
-                                      ? null
-                                      : participant.memberId
-                                  )
-                                }
-                                className="rounded-lg border border-amber-700 px-4 py-2 text-sm text-amber-300"
+                              <span
+                                className={`rounded-full border px-3 py-1 ${
+                                  isEligible
+                                    ? "border-green-600 text-green-300"
+                                    : "border-amber-700 text-amber-300"
+                                }`}
                               >
-                                {isOpen
-                                  ? "Réduire"
-                                  : "Gérer"}
-                              </button>
-
-                              <button
-                                onClick={() =>
-                                  void removeParticipant(
-                                    participant
-                                  )
-                                }
-                                disabled={
-                                  participantAction ===
-                                  `remove:${participant.memberId}`
-                                }
-                                className="rounded-lg border border-red-900 px-4 py-2 text-sm text-red-400 disabled:opacity-50"
-                              >
-                                Retirer
-                              </button>
+                                {isEligible
+                                  ? "Présence : considérée présente"
+                                  : "Non éligible aux récompenses"}
+                              </span>
                             </div>
                           </div>
 
-                          {isOpen && (
-                            <div className="mt-6 border-t border-green-900 pt-5">
-                              <section>
-                                <h4 className="font-bold text-green-100">
-                                  Présence réelle
-                                </h4>
-
-                                <div className="mt-3 flex flex-wrap gap-2">
-                                  {(
-                                    [
-                                      "PENDING",
-                                      "PRESENT",
-                                      "ABSENT",
-                                    ] as AttendanceStatus[]
-                                  ).map(
-                                    (value) => (
-                                      <button
-                                        key={
-                                          value
-                                        }
-                                        onClick={() =>
-                                          void changeAttendance(
-                                            participant,
-                                            value
-                                          )
-                                        }
-                                        disabled={
-                                          participantAction ===
-                                          `attendance:${participant.memberId}`
-                                        }
-                                        className={`rounded-lg border px-4 py-2 text-sm ${
-                                          attendance ===
-                                          value
-                                            ? "border-amber-500 bg-amber-700/30 text-amber-200"
-                                            : "border-green-800 text-green-300"
-                                        } disabled:opacity-50`}
-                                      >
-                                        {
-                                          attendanceLabels[
-                                            value
-                                          ]
-                                        }
-                                      </button>
-                                    )
-                                  )}
-                                </div>
-                              </section>
-
-                              <section className="mt-6">
-                                <h4 className="font-bold text-green-100">
-                                  Récompenses
-                                </h4>
-
-                                <div className="mt-3 space-y-3">
-                                  {selectedEvent.rewards.length ===
-                                  0 ? (
-                                    <p className="text-sm text-green-500">
-                                      Aucune récompense
-                                      définie.
-                                    </p>
-                                  ) : (
-                                    selectedEvent.rewards.map(
-                                      (
-                                        reward
-                                      ) => {
-                                        const state =
-                                          rewardStates.find(
-                                            (
-                                              item
-                                            ) =>
-                                              item.rewardId ===
-                                              reward.rewardId
-                                          );
-
-                                        const linkedObjective =
-                                          selectedEvent.objectives.find(
-                                            (objective) =>
-                                              objective.objectiveId ===
-                                              reward.objectiveId
-                                          );
-
-                                        const objectiveValidated =
-                                          linkedObjective?.status ===
-                                          "VALIDATED";
-
-                                        const eligible =
-                                          attendance === "PRESENT" &&
-                                          objectiveValidated &&
-                                          Boolean(reward.objectiveId);
-
-                                        const granted =
-                                          state?.status === "GRANTED";
-
-                                        return (
-                                          <div
-                                            key={
-                                              reward.rewardId
-                                            }
-                                            className="rounded-lg border border-green-800 bg-green-950/50 p-4"
-                                          >
-                                            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                                              <div>
-                                                <p className="font-semibold">
-                                                  {reward.label ||
-                                                    `${reward.amount} ${reward.currencyId}`}
-                                                </p>
-
-                                                <p className="mt-1 text-sm text-green-500">
-                                                  Objectif :{" "}
-                                                  {linkedObjective?.title ||
-                                                    "Non lié"}
-                                                </p>
-
-                                                <p className="mt-1 text-xs text-green-600">
-                                                  État :{" "}
-                                                  {granted
-                                                    ? "Attribuée automatiquement"
-                                                    : eligible
-                                                      ? "Éligible — attribution automatique en cours"
-                                                      : "En attente des conditions"}
-                                                </p>
-                                              </div>
-
-                                              <span
-                                                className={`rounded-lg border px-4 py-2 text-sm ${
-                                                  granted
-                                                    ? "border-green-600 text-green-300"
-                                                    : "border-green-800 text-green-500"
-                                                }`}
-                                              >
-                                                {granted
-                                                  ? "✓ Attribuée"
-                                                  : eligible
-                                                    ? "Automatique"
-                                                    : "En attente"}
-                                              </span>
-                                            </div>
-                                          </div>
-                                        );
-                                      }
-                                    )
-                                  )}
-                                </div>
-                              </section>
-                            </div>
-                          )}
-                        </article>
-                      );
-                    }
-                  )}
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => void removeParticipant(participant)}
+                              disabled={
+                                participantAction ===
+                                `remove:${participant.memberId}`
+                              }
+                              className="rounded-lg border border-red-900 px-4 py-2 text-sm text-red-400 disabled:opacity-50"
+                            >
+                              Retirer
+                            </button>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
                 </div>
               )}
             </div>

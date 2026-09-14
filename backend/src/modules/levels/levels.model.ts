@@ -124,6 +124,7 @@ const levelHistorySchema =
           "QUEST",
           "ACHIEVEMENT",
           "ADMIN",
+          "EVENT",
         ],
         required: true,
       },

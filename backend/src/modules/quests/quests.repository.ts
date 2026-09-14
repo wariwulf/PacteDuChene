@@ -6,6 +6,7 @@ import type {
   QuestObjective,
   QuestStep,
 } from "./quests.types";
+import { User } from "../users/user.model";
 
 type QuestWriteData = {
   questId: string;
@@ -284,9 +285,59 @@ export class QuestsRepository {
     const { QuestSubmission } =
       await import("./quest-submission.model");
 
-    return QuestSubmission.find({
+    const submissions = await QuestSubmission.find({
       status: "pending",
     }).sort({ createdAt: -1 });
+
+    if (submissions.length === 0) {
+      return submissions;
+    }
+
+    // Les soumissions ne stockent volontairement que le userId.
+    // On enrichit la réponse administrative avec les informations
+    // publiques du membre afin que l'administrateur puisse identifier
+    // immédiatement l'auteur de la preuve.
+    const userIds = [
+      ...new Set(
+        submissions.map((submission) =>
+          String(submission.userId)
+        )
+      ),
+    ];
+
+    const users = await User.find({
+      _id: { $in: userIds },
+      status: { $ne: "DELETED" },
+    })
+      .select("_id profile discord paxDei")
+      .lean();
+
+    const usersById = new Map(
+      users.map((user: any) => [
+        String(user._id),
+        user,
+      ])
+    );
+
+    return submissions.map((submission: any) => {
+      const user = usersById.get(
+        String(submission.userId)
+      );
+
+      return {
+        ...submission.toObject(),
+        member: user
+          ? {
+              id: String(user._id),
+              username: user.profile?.username ?? "",
+              displayName: user.profile?.displayName,
+              avatar: user.profile?.avatar,
+              discordUsername: user.discord?.username,
+              characterName: user.paxDei?.characterName,
+            }
+          : undefined,
+      };
+    });
   }
 
   async findUserSubmissions(
