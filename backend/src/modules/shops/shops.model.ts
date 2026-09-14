@@ -3,7 +3,7 @@ import mongoose, { Document, Schema } from "mongoose";
 export type ShopTier = 1 | 2 | 3 | 4 | 5;
 
 export interface ShopItemDocument extends Document {
-  shopId: string; itemId: string; name: string; imageUrl?: string; description?: string; externalUrl?: string;
+  shopId: string; itemId: string; paxDeiItemId?: string; name: string; imageUrl?: string; description?: string; externalUrl?: string;
   tier: ShopTier; price: number; currencyId: "solidus" | "argent" | "bronze"; stock: number; enabled: boolean;
   purchaseLimit?: number; purchaseLimitWindowHours?: number; createdAt: Date; updatedAt: Date;
 }

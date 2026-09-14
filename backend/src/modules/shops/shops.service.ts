@@ -6,6 +6,7 @@ import { Inventory } from "./inventory.model";
 import { ShopPurchase } from "./purchase.model";
 import { AdminNotification } from "./notification.model";
 import { FIXED_SHOPS } from "./shops.constants";
+import { paxDeiItemsService } from "../paxdei/paxdei.items.service";
 
 const tierValues = [1, 2, 3, 4, 5] as const;
 
@@ -157,13 +158,19 @@ export class ShopsService {
     await this.ensureFixedShops();
     validateItem(data);
 
-    const itemId = String(data.itemId).trim().toLowerCase();
+    const paxDeiItemId = String(data.paxDeiItemId ?? "").trim();
+    const catalogItem = paxDeiItemId
+      ? await paxDeiItemsService.get(paxDeiItemId)
+      : null;
+
+    const itemId = (catalogItem?.itemId ?? String(data.itemId)).trim().toLowerCase();
 
     return ShopItem.create({
       shopId,
       itemId,
-      name: String(data.name).trim(),
-      imageUrl: String(data.imageUrl ?? "").trim() || undefined,
+      paxDeiItemId: catalogItem?.itemId,
+      name: catalogItem?.name ?? String(data.name).trim(),
+      imageUrl: catalogItem?.imageUrl || String(data.imageUrl ?? "").trim() || undefined,
       description: String(data.description ?? "").trim() || undefined,
       externalUrl: cleanUrl(data.externalUrl),
       tier: Number(data.tier),
@@ -191,11 +198,19 @@ export class ShopsService {
 
     validateItem({ ...data, itemId });
 
+    const paxDeiItemId = String(data.paxDeiItemId ?? "").trim();
+    const catalogItem = paxDeiItemId
+      ? await paxDeiItemsService.get(paxDeiItemId)
+      : null;
+
     const patch = {
       ...data,
       shopId,
+      itemId: (catalogItem?.itemId ?? itemId).trim().toLowerCase(),
+      paxDeiItemId: catalogItem?.itemId,
+      name: catalogItem?.name ?? String(data.name ?? "").trim(),
+      imageUrl: catalogItem?.imageUrl || String(data.imageUrl ?? "").trim() || undefined,
       currencyId: fixedShop.currencyId,
-      imageUrl: String(data.imageUrl ?? "").trim() || undefined,
       description: String(data.description ?? "").trim() || undefined,
       externalUrl: cleanUrl(data.externalUrl),
       tier: Number(data.tier),
@@ -393,6 +408,7 @@ export class ShopsService {
         {
           $setOnInsert: {
             shopId,
+            paxDeiItemId: item.paxDeiItemId || item.itemId,
             name: item.name,
             imageUrl: item.imageUrl,
             description: item.description,
@@ -523,15 +539,17 @@ export class ShopsService {
 
     if (quantity > 0) {
       const item = await ShopItem.findOne({ itemId });
+      const catalogItem = !item ? await paxDeiItemsService.get(itemId) : null;
 
-      if (!item) throw new Error("Article introuvable.");
+      if (!item && !catalogItem) throw new Error("Article introuvable.");
 
       inv = await Inventory.findOneAndUpdate(
         { userId, itemId },
         {
           $setOnInsert: {
-            shopId: item.shopId,
-            name: item.name,
+            shopId: item?.shopId ?? "administration",
+            paxDeiItemId: item?.paxDeiItemId ?? catalogItem?.itemId ?? itemId,
+            name: item?.name ?? catalogItem?.name ?? itemId,
             imageUrl: item.imageUrl,
             description: item.description,
             acquiredAt: new Date(),

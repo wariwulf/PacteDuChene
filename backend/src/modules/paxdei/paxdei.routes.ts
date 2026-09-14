@@ -1,7 +1,31 @@
 import { Router } from "express";
+
+import { requireAuth } from "../../middleware/auth.middleware";
+import { requireRole } from "../../middleware/role.middleware";
+
+import * as itemController from "./paxdei.items.controller";
 import { paxDeiController } from "./paxdei.controller";
 
 const router = Router();
+
+router.get(
+  "/items/search",
+  requireAuth,
+  itemController.search,
+);
+
+router.post(
+  "/items/sync",
+  requireAuth,
+  requireRole("ADMIN", "OWNER"),
+  itemController.sync,
+);
+
+router.get(
+  "/items/:itemId",
+  requireAuth,
+  itemController.get,
+);
 
 router.get(
   "/characters/member/:memberId",

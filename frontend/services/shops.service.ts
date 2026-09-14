@@ -15,6 +15,7 @@ export interface ShopItem {
   enabled: boolean;
   purchaseLimit?: number;
   purchaseLimitWindowHours?: number;
+  paxDeiItemId?: string;
 }
 
 export interface Shop {

@@ -17,6 +17,7 @@ import {
   updateShopItem,
   uploadShopItemImage,
 } from "@/services/shops.service";
+import { getPaxDeiItem, searchPaxDeiItems, type PaxDeiItem } from "@/services/paxdei.service";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
@@ -30,6 +31,7 @@ const FIXED_SHOP_IDS = [
 
 const blank = {
   itemId: "",
+  paxDeiItemId: "",
   name: "",
   imageUrl: "",
   description: "",
@@ -85,6 +87,9 @@ function AdminBoutiquesContent() {
   const [purchases, setPurchases] = useState<ShopPurchase[]>([]);
   const [selectedPurchase, setSelectedPurchase] = useState<any>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [paxDeiSearch, setPaxDeiSearch] = useState("");
+  const [paxDeiResults, setPaxDeiResults] = useState<PaxDeiItem[]>([]);
+  const [paxDeiSearching, setPaxDeiSearching] = useState(false);
   const searchParams = useSearchParams();
 
   async function load() {
@@ -129,6 +134,8 @@ function AdminBoutiquesContent() {
     setImageFile(null);
     setImagePreview("");
     setLimitEnabled(false);
+    setPaxDeiSearch("");
+    setPaxDeiResults([]);
   }
 
   function selectShop(shop: Shop) {
@@ -138,6 +145,8 @@ function AdminBoutiquesContent() {
     setImageFile(null);
     setImagePreview("");
     setLimitEnabled(false);
+    setPaxDeiSearch("");
+    setPaxDeiResults([]);
     setError("");
     setMsg("");
   }
@@ -148,6 +157,69 @@ function AdminBoutiquesContent() {
     setImageFile(file);
     setImagePreview(URL.createObjectURL(file));
     setError("");
+  }
+
+  async function searchPaxDeiCatalog() {
+    const query = paxDeiSearch.trim();
+    if (!query) {
+      setPaxDeiResults([]);
+      return;
+    }
+
+    try {
+      setPaxDeiSearching(true);
+      setError("");
+      setPaxDeiResults(await searchPaxDeiItems(query, 20));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Impossible de rechercher les objets Pax Dei.");
+    } finally {
+      setPaxDeiSearching(false);
+    }
+  }
+
+  async function selectPaxDeiItem(paxItem: PaxDeiItem) {
+    setPaxDeiResults([]);
+    setPaxDeiSearch(paxItem.name);
+    setError("");
+
+    // On applique immédiatement les données du catalogue afin que la sélection
+    // reste utilisable même si la récupération de la page Gaming.Tools échoue.
+    setItem((current: any) => ({
+      ...current,
+      paxDeiItemId: paxItem.itemId,
+      itemId: paxItem.itemId,
+      name: paxItem.name,
+      imageUrl: paxItem.imageUrl ?? "",
+      externalUrl: paxItem.externalUrl ?? "",
+    }));
+    setImageFile(null);
+    setImagePreview(mediaUrl(paxItem.imageUrl));
+
+    try {
+      const detail = await getPaxDeiItem(paxItem.itemId);
+      const metadata = detail.metadata ?? {};
+      const description = typeof metadata.description === "string"
+        ? metadata.description
+        : "";
+      const tier = Number(metadata.tier);
+
+      setItem((current: any) => ({
+        ...current,
+        paxDeiItemId: detail.itemId,
+        itemId: detail.itemId,
+        name: detail.name || current.name,
+        imageUrl: detail.imageUrl || current.imageUrl || "",
+        externalUrl: detail.externalUrl || current.externalUrl || "",
+        description: description || current.description || "",
+        tier: tier >= 1 && tier <= 5 ? tier : current.tier,
+      }));
+
+      setImagePreview(mediaUrl(detail.imageUrl || paxItem.imageUrl));
+    } catch (e) {
+      // Les données de base sont déjà appliquées : on ne bloque pas la création
+      // de l'article si Gaming.Tools est temporairement indisponible.
+      console.warn("Impossible de récupérer les détails Pax Dei", e);
+    }
   }
 
   async function removeItem(shopId: string, itemId: string, itemName: string) {
@@ -208,6 +280,11 @@ function AdminBoutiquesContent() {
       return;
     }
 
+    if (!editing && !item.paxDeiItemId) {
+      setError("Sélectionnez un objet Pax Dei avant de créer l'article.");
+      return;
+    }
+
     try {
       setSaving(true);
       setError("");
@@ -221,7 +298,8 @@ function AdminBoutiquesContent() {
         ...item,
         itemId: editing
           ? editing
-          : generateItemId(item.name, currentShop),
+          : item.paxDeiItemId || generateItemId(item.name, currentShop),
+        paxDeiItemId: item.paxDeiItemId || undefined,
         price: Number(item.price),
         stock: Number(item.stock),
         tier: Number(item.tier),
@@ -485,38 +563,81 @@ function AdminBoutiquesContent() {
               )}
             </div>
 
-            <div className="rounded-lg border border-green-800 bg-green-950/60 p-4">
-              <p className="text-sm font-semibold text-green-200">
-                Identifiant technique
-              </p>
-              <p className="mt-2 text-sm text-green-300">
-                Il est généré automatiquement à partir du nom de l'article.
-              </p>
-              <div className="mt-3 rounded-lg bg-green-900/50 px-3 py-2 font-mono text-sm text-amber-300">
-                {item.name
-                  ? generateItemId(item.name, selectedShop)
-                  : "identifiant-généré-automatiquement"}
+            <div className="md:col-span-2 rounded-lg border border-amber-700/50 bg-green-950/70 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-amber-300">Objet Pax Dei</p>
+                  <p className="mt-1 text-xs leading-5 text-green-400">
+                    Recherchez un objet dans le catalogue synchronisé depuis Gaming.Tools. Son identifiant, son nom et son image seront repris automatiquement.
+                  </p>
+                </div>
+                {item.paxDeiItemId && (
+                  <span className="rounded bg-green-900 px-2 py-1 font-mono text-xs text-amber-300">
+                    {item.paxDeiItemId}
+                  </span>
+                )}
               </div>
-              <p className="mt-2 text-xs leading-5 text-green-500">
-                Exemple : « Minerai de fer » devient « minerai-de-fer ». Si ce nom existe déjà dans la boutique, un numéro est ajouté automatiquement.
-              </p>
+
+              <div className="mt-4 flex gap-2">
+                <input
+                  value={paxDeiSearch}
+                  onChange={(e) => setPaxDeiSearch(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void searchPaxDeiCatalog(); } }}
+                  placeholder="Rechercher : lingot, cuir, bois..."
+                  disabled={saving || !!editing}
+                  className="w-full rounded-lg bg-green-900 p-3"
+                />
+                <button
+                  type="button"
+                  onClick={() => void searchPaxDeiCatalog()}
+                  disabled={saving || paxDeiSearching || !!editing}
+                  className="rounded-lg bg-amber-600 px-4 py-2 font-semibold disabled:opacity-40"
+                >
+                  {paxDeiSearching ? "..." : "Rechercher"}
+                </button>
+              </div>
+
+              {paxDeiResults.length > 0 && (
+                <div className="mt-3 max-h-72 space-y-2 overflow-y-auto">
+                  {paxDeiResults.map((paxItem) => (
+                    <button
+                      key={paxItem.itemId}
+                      type="button"
+                      onClick={() => void selectPaxDeiItem(paxItem)}
+                      className="flex w-full items-center gap-3 rounded-lg border border-green-800 bg-green-900/60 p-3 text-left hover:border-amber-600"
+                    >
+                      {paxItem.imageUrl ? (
+                        <img src={mediaUrl(paxItem.imageUrl)} alt="" className="h-12 w-12 rounded object-contain bg-black/20" />
+                      ) : (
+                        <div className="h-12 w-12 rounded border border-green-800 bg-green-950" />
+                      )}
+                      <span className="min-w-0 flex-1">
+                        <strong className="block truncate text-green-100">{paxItem.name}</strong>
+                        <span className="font-mono text-xs text-green-500">{paxItem.itemId}</span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              {item.paxDeiItemId && (
+                <div className="mt-3 rounded-lg border border-green-800 bg-green-900/40 p-3">
+                  <p className="text-sm font-semibold text-green-100">{item.name}</p>
+                  <p className="mt-1 text-xs text-green-400">Identifiant Pax Dei : <span className="font-mono">{item.paxDeiItemId}</span></p>
+                </div>
+              )}
             </div>
 
-            <div>
-              <label className="block text-sm font-semibold text-green-200">
+            <div className="rounded-lg border border-green-800 bg-green-950/60 p-4">
+              <p className="text-sm font-semibold text-green-200">
                 Nom de l'article
-              </label>
-              <input
-                value={item.name}
-                onChange={(e) => setItem({ ...item, name: e.target.value })}
-                placeholder="ex. Minerai de fer"
-                required
-                disabled={saving}
-                className="mt-2 w-full rounded-lg bg-green-950 p-3"
-              />
-              <p className="mt-1 text-xs text-green-500">
-                Le nom affiché aux membres dans la boutique.
               </p>
+              <p className="mt-2 text-sm text-green-300">
+                Ce nom est fourni par le catalogue Pax Dei. Il ne peut pas être modifié séparément pour un nouvel article.
+              </p>
+              <div className="mt-3 rounded-lg bg-green-900/50 px-3 py-2 text-sm text-amber-300">
+                {item.name || "Sélectionnez un objet Pax Dei ci-dessus"}
+              </div>
             </div>
 
             <div className="rounded-lg border border-green-800 bg-green-950 p-4">
@@ -851,12 +972,15 @@ function AdminBoutiquesContent() {
                           setEditing(i.itemId);
                           setItem({
                             ...i,
+                            paxDeiItemId: i.paxDeiItemId ?? "",
                             purchaseLimit: i.purchaseLimit ?? "",
                             purchaseLimitWindowHours:
                               i.purchaseLimitWindowHours ?? "24",
                           });
                           setImageFile(null);
                           setImagePreview(mediaUrl(i.imageUrl));
+                          setPaxDeiSearch(i.name);
+                          setPaxDeiResults([]);
                           setLimitEnabled(
                             i.purchaseLimit !== undefined &&
                               i.purchaseLimit !== null,
