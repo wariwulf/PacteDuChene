@@ -25,9 +25,9 @@ function buildData(body:any, partial=false) {
   if(body.endsAt!==undefined){if(body.endsAt===null||body.endsAt==="")data.endsAt=undefined;else{const d=date(body.endsAt);if(!d)throw new Error("La date de fin est invalide.");data.endsAt=d;}}
   return data;
 }
-export async function createAdmin(req:AuthenticatedRequest,res:Response){try{const body=req.body??{};const event=await clanEventsService.create({...buildData(body),status:(body.status??"PUBLISHED") as ClanEventStatus} as any,userId(req));return res.status(201).json({success:true,data:event});}catch(e){return res.status(400).json({success:false,message:message(e,"Impossible de créer l'événement.")});}}
-export async function updateAdmin(req:AuthenticatedRequest,res:Response){try{return res.json({success:true,data:await clanEventsService.update(param(req.params.eventId),buildData(req.body??{},true))});}catch(e){const m=message(e,"Impossible de modifier l'événement.");return res.status(m.includes("introuvable")?404:400).json({success:false,message:m});}}
-export async function syncDiscord(req:AuthenticatedRequest,res:Response){try{return res.json({success:true,data:await clanEventsService.syncDiscord(param(req.params.eventId))});}catch(e){const m=message(e,"Impossible de demander la synchronisation Discord.");return res.status(m.includes("introuvable")?404:400).json({success:false,message:m});}}
+export async function createAdmin(req:AuthenticatedRequest,res:Response){try{const body=req.body??{};const event=await clanEventsService.create({...buildData(body),status:(body.status??"PUBLISHED") as ClanEventStatus} as any,userId(req),{role:String(req.user?.role??""),factionRoleId:req.user?.factionRoleId});return res.status(201).json({success:true,data:event});}catch(e){return res.status(400).json({success:false,message:message(e,"Impossible de créer l'événement.")});}}
+export async function updateAdmin(req:AuthenticatedRequest,res:Response){try{return res.json({success:true,data:await clanEventsService.update(param(req.params.eventId),buildData(req.body??{},true),{role:String(req.user?.role??""),factionRoleId:req.user?.factionRoleId})});}catch(e){const m=message(e,"Impossible de modifier l'événement.");return res.status(m.includes("introuvable")?404:400).json({success:false,message:m});}}
+export async function syncDiscord(req:AuthenticatedRequest,res:Response){try{return res.json({success:true,data:await clanEventsService.syncDiscord(param(req.params.eventId),{role:String(req.user?.role??""),factionRoleId:req.user?.factionRoleId})});}catch(e){const m=message(e,"Impossible de demander la synchronisation Discord.");return res.status(m.includes("introuvable")?404:400).json({success:false,message:m});}}
 export async function deleteAdmin(req:AuthenticatedRequest,res:Response){try{return res.json({success:true,data:await clanEventsService.remove(param(req.params.eventId))});}catch(e){return res.status(400).json({success:false,message:message(e,"Impossible de supprimer l'événement.")});}}
 
 export async function listAdminParticipants(req:AuthenticatedRequest,res:Response){
@@ -71,7 +71,7 @@ export async function uploadImage(req: AuthenticatedRequest, res: Response) {
     const eventId = param(req.params.eventId);
     const file = (req as any).file as { filename?: string } | undefined;
     if (!file?.filename) return res.status(400).json({ success:false, message:"Aucune image valide n'a été envoyée." });
-    const event = await clanEventsService.update(eventId, { imageUrl: `/uploads/clan-events/${file.filename}` });
+    const event = await clanEventsService.update(eventId, { imageUrl: `/uploads/clan-events/${file.filename}` }, { role:String(req.user?.role??""), factionRoleId:req.user?.factionRoleId });
     return res.json({ success:true, data:event });
   } catch (e) { return res.status(400).json({ success:false, message:message(e,"Impossible d'enregistrer l'image.") }); }
 }

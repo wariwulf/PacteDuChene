@@ -7,10 +7,17 @@ import { levelsService } from "../levels/levels.service";
 import { randomBytes } from "node:crypto";
 import { User } from "../users/user.model";
 import type { AttendanceStatus, RewardGrantData, AdminEventParticipantData } from "./clan-events.types";
+import { UserRole } from "../../common/constants/roles";
+import { eventChannelForFactionRole } from "../../common/security/permissions";
 
 const EVENT_TYPES: ClanEventType[] = ["COLLECTE","COMBAT","CEREMONIE","REUNION","SORTIE","AUTRE"];
 const PARTICIPATION_STATUSES: ParticipationStatus[] = ["ACCEPTED","MAYBE","DECLINED"];
 const TWO_HOURS = 2 * 60 * 60 * 1000;
+
+export interface ClanEventManagerContext {
+  role: string;
+  factionRoleId?: string;
+}
 
 function dateOnly(d: Date) { return new Date(d.getFullYear(), d.getMonth(), d.getDate(), d.getHours(), d.getMinutes(), d.getSeconds(), d.getMilliseconds()); }
 
@@ -26,12 +33,107 @@ export class ClanEventsService {
     return this.withMemberParticipation(event, memberId);
   }
 
-  async create(data: CreateClanEventData, createdBy: string) {
+  async create(data: CreateClanEventData, createdBy: string, actor: ClanEventManagerContext) {
     const eventId = await this.generateEventId(data.title, data.eventId);
-    const completeData = { ...data, eventId } as ClanEventData;
+    const completeData = this.applyCreateChannelPolicy(
+      { ...data, eventId } as ClanEventData,
+      actor,
+    );
     this.validateEvent(completeData);
     const normalized = this.normalizeEvent(completeData);
     return clanEventsRepository.create({ ...normalized, createdBy, publishedAt: undefined });
+  }
+
+  private isPrivilegedEventManager(actor: ClanEventManagerContext) {
+    const role = String(actor.role ?? "").toUpperCase();
+    return role === UserRole.OWNER || role === UserRole.ADMIN;
+  }
+
+  private isFactionLeader(actor: ClanEventManagerContext) {
+    return Boolean(eventChannelForFactionRole(actor.factionRoleId));
+  }
+
+  private applyCreateChannelPolicy(
+    data: ClanEventData,
+    actor: ClanEventManagerContext,
+  ): ClanEventData {
+    if (this.isPrivilegedEventManager(actor)) return data;
+
+    const allowedChannelId = eventChannelForFactionRole(actor.factionRoleId);
+    if (!allowedChannelId) {
+      throw new Error(
+        "Votre compte ne possède pas de rôle Discord de chef de faction autorisé à créer des événements.",
+      );
+    }
+
+    const requestedChannel = String(
+      data.discordChannelId ?? data.discordChannel ?? "",
+    ).trim();
+
+    // Le backend reste la source de vérité : même si le frontend envoie une
+    // autre valeur, un chef de faction ne peut jamais publier ailleurs.
+    if (requestedChannel && requestedChannel !== allowedChannelId) {
+      throw new Error(
+        "Vous ne pouvez publier des événements que dans le salon Discord de votre faction.",
+      );
+    }
+
+    return {
+      ...data,
+      discordChannelId: allowedChannelId,
+      discordChannel: data.discordChannel?.trim() || allowedChannelId,
+    };
+  }
+
+  private assertCanManageEventChannel(
+    event: Pick<ClanEventData, "discordChannelId" | "discordChannel">,
+    actor: ClanEventManagerContext,
+  ) {
+    if (this.isPrivilegedEventManager(actor)) return;
+
+    const allowedChannelId = eventChannelForFactionRole(actor.factionRoleId);
+    if (!allowedChannelId) {
+      throw new Error(
+        "Votre compte ne possède pas de rôle Discord de chef de faction autorisé à gérer cet événement.",
+      );
+    }
+
+    const eventChannel = String(
+      event.discordChannelId ?? event.discordChannel ?? "",
+    ).trim();
+
+    // Les anciens événements sans discordChannelId restent éditables par un
+    // chef de faction, mais leur prochain enregistrement est automatiquement
+    // rattaché à son salon officiel.
+    if (eventChannel && eventChannel !== allowedChannelId) {
+      throw new Error(
+        "Cet événement appartient à un autre salon Discord et ne peut pas être géré par votre faction.",
+      );
+    }
+  }
+
+  private assertRequestedChannelAllowed(
+    data: Partial<ClanEventData>,
+    actor: ClanEventManagerContext,
+  ) {
+    if (this.isPrivilegedEventManager(actor)) return;
+
+    const allowedChannelId = eventChannelForFactionRole(actor.factionRoleId);
+    if (!allowedChannelId) {
+      throw new Error(
+        "Votre compte ne possède pas de rôle Discord de chef de faction autorisé à gérer cet événement.",
+      );
+    }
+
+    const requestedChannel = String(
+      data.discordChannelId ?? data.discordChannel ?? "",
+    ).trim();
+
+    if (requestedChannel && requestedChannel !== allowedChannelId) {
+      throw new Error(
+        "Vous ne pouvez pas déplacer un événement vers le salon Discord d'une autre faction.",
+      );
+    }
   }
 
   private async generateEventId(title: string, requestedId?: string) {
@@ -60,7 +162,7 @@ export class ClanEventsService {
     throw new Error("Impossible de générer un identifiant unique pour l'événement.");
   }
 
-  async update(eventId: string, data: Partial<ClanEventData>) {
+  async update(eventId: string, data: Partial<ClanEventData>, actor?: ClanEventManagerContext) {
     const current = await clanEventsRepository.findByEventId(eventId);
     if (!current || current.status === "ARCHIVED") throw new Error("Événement introuvable.");
     if (data.title !== undefined && !data.title.trim()) throw new Error("Le titre de l'événement est obligatoire.");
@@ -68,7 +170,19 @@ export class ClanEventsService {
     if (data.startsAt !== undefined && Number.isNaN(new Date(data.startsAt).getTime())) throw new Error("La date de début est invalide.");
     if (data.endsAt !== undefined && data.endsAt && Number.isNaN(new Date(data.endsAt).getTime())) throw new Error("La date de fin est invalide.");
 
+    if (actor) {
+      this.assertCanManageEventChannel(current, actor);
+      this.assertRequestedChannelAllowed(data, actor);
+    }
+
     const merged = { ...current.toObject(), ...data } as ClanEventData;
+    if (actor && this.isFactionLeader(actor)) {
+      const allowedChannelId = eventChannelForFactionRole(actor.factionRoleId);
+      if (allowedChannelId) {
+        merged.discordChannelId = allowedChannelId;
+        if (!merged.discordChannel?.trim()) merged.discordChannel = allowedChannelId;
+      }
+    }
     if (data.objectives !== undefined) {
       merged.objectives = this.mergeObjectiveStates(
         current.objectives ?? [],
@@ -78,6 +192,13 @@ export class ClanEventsService {
     this.validateEvent(merged, true, data.rewards !== undefined);
     const normalized: Partial<ClanEventData> = { ...data };
     if (data.objectives !== undefined) normalized.objectives = merged.objectives;
+    if (actor && this.isFactionLeader(actor)) {
+      const allowedChannelId = eventChannelForFactionRole(actor.factionRoleId);
+      if (allowedChannelId) {
+        normalized.discordChannelId = allowedChannelId;
+        if (data.discordChannel === undefined) normalized.discordChannel = allowedChannelId;
+      }
+    }
     if (data.startsAt || data.endsAt || data.durationMinutes !== undefined) {
       const n = this.normalizeEvent(merged);
       normalized.startsAt = n.startsAt;
@@ -145,11 +266,12 @@ export class ClanEventsService {
    * Signale au bot Discord que l'événement doit être resynchronisé.
    * Le bot surveille updatedAt pour détecter les changements.
    */
-  async syncDiscord(eventId: string) {
+  async syncDiscord(eventId: string, actor?: ClanEventManagerContext) {
     const event = await clanEventsRepository.findByEventId(eventId);
     if (!event || event.status === "ARCHIVED") {
       throw new Error("Événement introuvable.");
     }
+    if (actor) this.assertCanManageEventChannel(event, actor);
 
     return clanEventsRepository.update(eventId, { discordSyncAt: new Date() } as any);
   }

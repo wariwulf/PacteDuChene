@@ -4,9 +4,20 @@ import { requireAuth } from "../../middleware/auth.middleware";
 import { requireRole } from "../../middleware/role.middleware";
 
 import * as itemController from "./paxdei.items.controller";
+import * as recipeController from "./paxdei.recipes.controller";
 import { paxDeiController } from "./paxdei.controller";
+import paxDeiDataRoutes from "./paxdei.data.routes";
 
 const router = Router();
+
+
+router.use("/data", paxDeiDataRoutes);
+
+router.get(
+  "/recipes/item/:itemId",
+  requireAuth,
+  recipeController.getRecipe,
+);
 
 router.get(
   "/items/search",
@@ -51,5 +62,6 @@ router.delete(
   "/characters/:id",
   paxDeiController.deleteCharacter.bind(paxDeiController)
 );
+
 
 export default router;

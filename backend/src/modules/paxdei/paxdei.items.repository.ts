@@ -6,22 +6,33 @@ export class PaxDeiItemsRepository {
     return PaxDeiItem.findOne({ itemId }).lean();
   }
 
-  async search(query: string, lang = "fr", limit = 25) {
+  async search(
+    query: string,
+    lang = "fr",
+    limit = 25,
+    allowedItemIds?: readonly string[],
+  ) {
     const safeLimit = Math.min(Math.max(Number(limit) || 25, 1), 50);
     const q = query.trim();
 
-    if (!q) {
-      return PaxDeiItem.find({})
+    const scope =
+      allowedItemIds === undefined
+        ? {}
+        : { itemId: { $in: [...allowedItemIds] } };
+
+    if (q === "") {
+      return PaxDeiItem.find(scope)
         .sort({ name: 1 })
         .limit(safeLimit)
         .lean();
     }
 
-    const escaped = q.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&");
+    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     const regex = new RegExp(escaped, "i");
     const langField = `names.${lang}`;
 
     return PaxDeiItem.find({
+      ...scope,
       $or: [
         { name: regex },
         { [`${langField}`]: regex },
@@ -39,8 +50,15 @@ export class PaxDeiItemsRepository {
     return PaxDeiItem.countDocuments();
   }
 
+  async allItemIds() {
+    return (await PaxDeiItem.distinct("itemId")) as string[];
+  }
+
   async latestSync() {
-    const item = await PaxDeiItem.findOne({}).sort({ syncedAt: -1 }).select("syncedAt").lean();
+    const item = await PaxDeiItem.findOne({})
+      .sort({ syncedAt: -1 })
+      .select("syncedAt")
+      .lean();
     return item?.syncedAt ?? null;
   }
 

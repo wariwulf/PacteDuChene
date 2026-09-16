@@ -75,7 +75,7 @@ export class LevelsRepository {
         $set: data,
       },
       {
-        new: true,
+        returnDocument: "after",
         runValidators: true,
       }
     );

@@ -12,8 +12,39 @@ export interface PaxDeiItem {
   metadata?: Record<string, unknown>;
 }
 
-export async function searchPaxDeiItems(query: string, limit = 25) {
+export interface PaxDeiRecipeIngredient {
+  itemId?: string;
+  name: string;
+  quantity: number;
+  imageUrl?: string;
+}
+
+export interface PaxDeiRecipe {
+  recipeId: string;
+  name: string;
+  url: string;
+  ingredients: PaxDeiRecipeIngredient[];
+}
+
+export type PaxDeiFactionId =
+  | "domaine-du-chene"
+  | "guilde-des-artisans"
+  | "confrerie-de-lepee";
+
+export interface PaxDeiCatalogEntry {
+  _id: string;
+  factionId: PaxDeiFactionId;
+  itemId: string;
+  reason: "RESOURCE_DROP" | "RECIPE_RESULT" | "FACTION_RELIC" | "MANUAL" | "MANUAL_EXCLUSION";
+  sourceId?: string;
+  enabled: boolean;
+  item?: Pick<PaxDeiItem, "itemId" | "name" | "names" | "imageUrl" | "externalUrl"> | null;
+}
+
+export async function searchPaxDeiItems(query: string, limit = 25, factionId?: string) {
   const params = new URLSearchParams({ q: query, lang: "fr", limit: String(limit) });
+  if (factionId) params.set("factionId", factionId);
+
   const r = await apiFetch<{ success: boolean; data: { items: PaxDeiItem[] } }>(
     `/paxdei/items/search?${params.toString()}`,
   );
@@ -33,4 +64,71 @@ export async function syncPaxDeiItems() {
     { method: "POST" },
   );
   return r.data.count;
+}
+
+export async function getPaxDeiRecipe(itemId: string) {
+  const r = await apiFetch<{
+    success: boolean;
+    data: { recipe: PaxDeiRecipe };
+  }>(
+    `/paxdei/recipes/item/${encodeURIComponent(itemId)}`
+  );
+
+  return r.data.recipe;
+}
+
+export async function getPaxDeiFactionCatalog(factionId: PaxDeiFactionId) {
+  const r = await apiFetch<{ success: boolean; data: { items: PaxDeiCatalogEntry[] } }>(
+    `/paxdei/data/catalog/${encodeURIComponent(factionId)}`,
+  );
+  return r.data.items;
+}
+
+export async function addPaxDeiFactionCatalogItem(
+  factionId: PaxDeiFactionId,
+  itemId: string,
+) {
+  const r = await apiFetch<{ success: boolean; data: { entry: PaxDeiCatalogEntry } }>(
+    `/paxdei/data/catalog/${encodeURIComponent(factionId)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ itemId }),
+    },
+  );
+  return r.data.entry;
+}
+
+export async function removePaxDeiFactionCatalogItem(
+  factionId: PaxDeiFactionId,
+  itemId: string,
+) {
+  await apiFetch(
+    `/paxdei/data/catalog/${encodeURIComponent(factionId)}/${encodeURIComponent(itemId)}`,
+    { method: "DELETE" },
+  );
+}
+
+
+export async function excludePaxDeiFactionCatalogItem(
+  factionId: PaxDeiFactionId,
+  itemId: string,
+) {
+  const r = await apiFetch<{ success: boolean; data: { entry: PaxDeiCatalogEntry } }>(
+    `/paxdei/data/catalog/${encodeURIComponent(factionId)}/${encodeURIComponent(itemId)}/exclude`,
+    {
+      method: "POST",
+    },
+  );
+  return r.data.entry;
+}
+
+export async function reinstatePaxDeiFactionCatalogItem(
+  factionId: PaxDeiFactionId,
+  itemId: string,
+) {
+  await apiFetch(
+    `/paxdei/data/catalog/${encodeURIComponent(factionId)}/${encodeURIComponent(itemId)}/exclusion`,
+    { method: "DELETE" },
+  );
 }

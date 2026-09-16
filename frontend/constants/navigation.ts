@@ -64,6 +64,16 @@ export const navigation: NavigationItem[] = [
     access: "member",
   },
   {
+    label: "Factions",
+    href: "/factions",
+    access: "member",
+  },
+  {
+    label: "Mes commandes",
+    href: "/espace-membre/commandes",
+    access: "member",
+  },
+  {
     label: "Discord",
     href: "/discord",
     access: "member",
@@ -137,6 +147,18 @@ export const administrationNavigation: NavigationItem[] = [
     access: "admin",
     permission: "clan-events.manage",
   },
+  {
+    label: "Factions",
+    href: "/administration/factions",
+    access: "admin",
+    permission: "factions.manage",
+  },
+    {
+    label: "Catalogues Pax Dei",
+    href: "/administration/paxdei/catalogue",
+    access: "admin",
+    adminOnly: true,
+  }
 ];
 
 export const memberNavigation = navigation.filter(

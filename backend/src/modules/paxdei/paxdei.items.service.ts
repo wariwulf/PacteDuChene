@@ -1,7 +1,5 @@
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-
 import { paxDeiItemsRepository } from "./paxdei.items.repository";
+import { paxDeiFactionCatalogService } from "./paxdei.faction-catalog.service";
 import {
   PaxDeiItemData,
   PaxDeiItemLocalizedNames,
@@ -13,8 +11,6 @@ const GAMING_TOOLS_ITEMS_URL =
 const GAMING_TOOLS_BASE_URL = "https://paxdei.gaming.tools";
 const SYNC_MAX_AGE_MS = 60 * 60 * 1000;
 const DETAIL_CACHE_MAX_AGE_MS = 60 * 60 * 1000;
-const execFileAsync = promisify(execFile);
-const CURL_MAX_BUFFER = 12 * 1024 * 1024;
 
 function text(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -205,86 +201,21 @@ function parseTier(value: string): number | undefined {
   return tier >= 1 && tier <= 5 ? tier : undefined;
 }
 
-async function fetchItemHtmlWithCurl(url: string, itemId: string): Promise<string> {
-  const command = process.platform === "win32" ? "curl.exe" : "curl";
-  const args = [
-    "-L",
-    "-sS",
-    "--compressed",
-    "-A",
-    "PacteDuChene/1.0",
-    "-H",
-    "Accept: text/html,application/xhtml+xml",
-    "-H",
-    "Accept-Language: fr-FR,fr;q=0.9,en;q=0.8",
-    "--max-time",
-    "20",
-    "-w",
-    "\n__PACTE_HTTP_STATUS__:%{http_code}",
-    url,
-  ];
-
-  try {
-    const { stdout } = await execFileAsync(command, args, {
-      maxBuffer: CURL_MAX_BUFFER,
-      windowsHide: true,
-    });
-
-    const marker = "__PACTE_HTTP_STATUS__:";
-    const markerIndex = stdout.lastIndexOf(marker);
-    if (markerIndex < 0) {
-      throw new Error(`Réponse curl invalide pour ${itemId}.`);
-    }
-
-    const statusText = stdout.slice(markerIndex + marker.length).trim();
-    const status = Number.parseInt(statusText, 10);
-    const html = stdout.slice(0, markerIndex).trim();
-
-    if (!Number.isFinite(status) || status < 200 || status >= 300) {
-      throw new Error(`Gaming.Tools a répondu HTTP ${status || "inconnu"} pour ${itemId}.`);
-    }
-
-    if (!html) {
-      throw new Error(`Gaming.Tools a renvoyé une page vide pour ${itemId}.`);
-    }
-
-    return html;
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Impossible de récupérer Gaming.Tools via curl pour ${itemId}: ${message}`);
-  }
-}
-
 async function fetchItemDetails(itemId: string) {
   const url = externalUrlForItem(itemId);
-  let html = "";
+  const response = await fetch(url, {
+    headers: {
+      Accept: "text/html,application/xhtml+xml",
+      "User-Agent": "PacteDuChene/1.0",
+    },
+    signal: AbortSignal.timeout(20_000),
+  });
 
-  try {
-    const response = await fetch(url, {
-      headers: {
-        Accept: "text/html,application/xhtml+xml",
-        "User-Agent": "PacteDuChene/1.0",
-      },
-      signal: AbortSignal.timeout(20_000),
-    });
-
-    if (response.ok) {
-      html = await response.text();
-    } else if (response.status === 403) {
-      console.warn(`[PaxDei] Gaming.Tools refuse fetch() (403) pour ${itemId}; tentative via curl.`);
-      html = await fetchItemHtmlWithCurl(url, itemId);
-    } else {
-      throw new Error(`Gaming.Tools a répondu HTTP ${response.status} pour ${itemId}.`);
-    }
-  } catch (error) {
-    const status = error instanceof Error ? error.message : String(error);
-    if (/HTTP 403/.test(status)) {
-      html = await fetchItemHtmlWithCurl(url, itemId);
-    } else if (!html) {
-      throw error;
-    }
+  if (!response.ok) {
+    throw new Error(`Gaming.Tools a répondu HTTP ${response.status} pour ${itemId}.`);
   }
 
+  const html = await response.text();
   const title = metaContent(html, "og:title");
   const ogDescription = metaContent(html, "og:description");
   const ogImage = metaContent(html, "og:image");
@@ -322,12 +253,20 @@ export class PaxDeiItemsService {
     await this.syncCatalog();
   }
 
-  async search(params: PaxDeiItemSearchParams = {}) {
+  async search(
+    params: PaxDeiItemSearchParams & { factionId?: string } = {},
+  ) {
     await this.ensureFreshCatalog();
+
+    const allowedItemIds = params.factionId
+      ? await paxDeiFactionCatalogService.getAllowedItemIds(params.factionId)
+      : undefined;
+
     return paxDeiItemsRepository.search(
       params.q ?? "",
       params.lang ?? "fr",
       params.limit ?? 25,
+      allowedItemIds ? [...allowedItemIds] : undefined,
     );
   }
 

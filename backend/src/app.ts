@@ -12,6 +12,7 @@ import shopsRoutes from "./modules/shops/shops.routes";
 import usersRoutes from "./modules/users/users.routes";
 import clanRoutes from "./modules/clan/clan.routes";
 import clanEventsRoutes from "./modules/clan-events/clan-events.routes";
+import { factionsRoutes, factionsBotRoutes } from "./modules/factions";
 
 const app = express();
 
@@ -56,5 +57,7 @@ app.use("/api/paxdei", paxDeiRoutes);
 app.use("/api/lore", loreRoutes);
 app.use("/api/discord", discordRoutes);
 app.use("/api/shops", shopsRoutes);
+app.use("/api/factions", factionsRoutes);
+app.use("/api/factions/internal/bot", factionsBotRoutes);
 
 export default app;

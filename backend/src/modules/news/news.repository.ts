@@ -53,7 +53,7 @@ export async function updateNews(
     id,
     data,
     {
-      new: true,
+      returnDocument: "after",
       runValidators: true,
     }
   );

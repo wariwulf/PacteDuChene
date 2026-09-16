@@ -32,6 +32,60 @@ import {
   type ObjectiveValidationStatus,
   type Recurrence,
 } from "@/services/clan-events.service";
+import { useAuth } from "@/contexts/AuthContext";
+
+const DISCORD_EVENT_CHANNELS = [
+  {
+    id: "1487527127321677904",
+    label: "📅 Event du Pacte",
+    description: "Événements généraux du Pacte.",
+    roleId: null,
+  },
+  {
+    id: "1541770841295953980",
+    label: "🌿 Event du Domaine",
+    description: "Événements du Domaine du Chêne.",
+    roleId: "1523341164558946335",
+  },
+  {
+    id: "1541771158079283260",
+    label: "⚔️ Event de la Confrérie",
+    description: "Événements de la Confrérie de l'Épée.",
+    roleId: "1543358103347531886",
+  },
+  {
+    id: "1541774120419856424",
+    label: "🔨 Event de la Guilde",
+    description: "Événements de la Guilde des Artisans.",
+    roleId: "1543357652933804062",
+  },
+] as const;
+
+function isGlobalEventManager(role?: string) {
+  const normalized = String(role ?? "").toUpperCase();
+  return normalized === "OWNER" || normalized === "ADMIN" || normalized === "ADMINISTRATOR";
+}
+
+function getAllowedEventChannels(user: { role?: string; isFactionLeader?: boolean; factionRoleId?: string } | null) {
+  if (!user) return [];
+
+  if (isGlobalEventManager(user.role)) {
+    return [...DISCORD_EVENT_CHANNELS];
+  }
+
+  if (!user.isFactionLeader || !user.factionRoleId) {
+    return [];
+  }
+
+  return DISCORD_EVENT_CHANNELS.filter(
+    (channel) => channel.roleId === String(user.factionRoleId),
+  );
+}
+
+function getDefaultEventChannel(user: { role?: string; isFactionLeader?: boolean; factionRoleId?: string } | null) {
+  const allowed = getAllowedEventChannels(user);
+  return allowed[0]?.id ?? "";
+}
 
 const types: ClanEventType[] = [
   "COLLECTE",
@@ -135,8 +189,19 @@ function memberNameFromAdminMember(member: AdminEventMember) {
 }
 
 export default function AdministrationEvenementsPage() {
+  const { user } = useAuth();
+
+  const allowedEventChannels = getAllowedEventChannels(user);
+  const canPublishAllEventChannels = isGlobalEventManager(user?.role);
+  const forcedEventChannel = allowedEventChannels.length === 1
+    ? allowedEventChannels[0]
+    : null;
+
   const [events, setEvents] = useState<ClanEvent[]>([]);
-  const [form, setForm] = useState(defaultForm());
+  const [form, setForm] = useState<ReturnType<typeof defaultForm>>(() => ({
+    ...defaultForm(),
+    discordChannel: String(getDefaultEventChannel(user)),
+  }));
 
   const [editing, setEditing] =
     useState<string | null>(null);
@@ -192,9 +257,25 @@ export default function AdministrationEvenementsPage() {
     void load();
   }, []);
 
+  useEffect(() => {
+    if (!user || editing) return;
+
+    const defaultChannel = getDefaultEventChannel(user);
+    if (!defaultChannel) return;
+
+    setForm((current) =>
+      current.discordChannel
+        ? current
+        : { ...current, discordChannel: defaultChannel },
+    );
+  }, [user, editing]);
+
   function reset() {
     setEditing(null);
-    setForm(defaultForm());
+    setForm({
+      ...defaultForm(),
+      discordChannel: getDefaultEventChannel(user),
+    });
     setImage(null);
   }
 
@@ -809,21 +890,55 @@ export default function AdministrationEvenementsPage() {
 
             <label>
               <span className="mb-2 block text-sm font-semibold">
-                Salon Discord (ID ou nom)
+                Salon Discord de publication
               </span>
 
-              <input
-                className={field}
-                value={form.discordChannel}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    discordChannel:
-                      e.target.value,
-                  })
-                }
-                placeholder="123456789012345678"
-              />
+              {canPublishAllEventChannels ? (
+                <>
+                  <select
+                    className={field}
+                    value={form.discordChannel}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        discordChannel: e.target.value,
+                      })
+                    }
+                  >
+                    <option value="" disabled>
+                      Sélectionner un salon…
+                    </option>
+                    {allowedEventChannels.map((channel) => (
+                      <option key={channel.id} value={channel.id}>
+                        {channel.label}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-xs text-green-400/80">
+                    Vous pouvez publier les événements dans les quatre salons du Pacte.
+                  </p>
+                </>
+              ) : forcedEventChannel ? (
+                <>
+                  <select
+                    className={`${field} cursor-not-allowed opacity-80`}
+                    value={form.discordChannel || forcedEventChannel.id}
+                    disabled
+                    aria-describedby="discord-channel-help"
+                  >
+                    <option value={forcedEventChannel.id}>
+                      {forcedEventChannel.label}
+                    </option>
+                  </select>
+                  <p id="discord-channel-help" className="mt-2 text-xs text-green-400/80">
+                    Ce salon est associé à votre rôle de chef de faction. La publication y sera faite automatiquement.
+                  </p>
+                </>
+              ) : (
+                <div className="rounded-lg border border-red-900/80 bg-red-950/30 px-4 py-3 text-sm text-red-200">
+                  Aucun salon Discord de faction n'est associé à votre compte.
+                </div>
+              )}
             </label>
 
             <label>
