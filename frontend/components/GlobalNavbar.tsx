@@ -152,7 +152,7 @@ export default function GlobalNavbar() {
 
   const economyNavigation = visibleNavigation.filter((item) =>
     [
-      "/espace-membre/inventaire",
+      "/inventaire",
       "/boutiques",
       "/espace-membre/commandes",
     ].includes(item.href)

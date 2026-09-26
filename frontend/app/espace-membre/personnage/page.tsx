@@ -32,7 +32,6 @@ type Level = {
   progressPercent: number;
 };
 
-type BalanceMap = Record<string, number>;
 
 type Character = {
   _id?: string;
@@ -187,27 +186,6 @@ function Stat({
   );
 }
 
-function Balance({
-  icon,
-  label,
-  value,
-}: {
-  icon: string;
-  label: string;
-  value: number;
-}) {
-  return (
-    <div className="rounded-xl border border-green-800 bg-green-950/60 p-4">
-      <div className="text-xl">{icon}</div>
-      <p className="mt-2 text-sm text-green-300">
-        {label}
-      </p>
-      <p className="mt-1 text-xl font-bold text-amber-400">
-        {value.toLocaleString("fr-FR")}
-      </p>
-    </div>
-  );
-}
 
 function TextStat({
   label,
@@ -245,8 +223,6 @@ export default function PersonnagePage() {
     useState<Member | null>(null);
   const [level, setLevel] =
     useState<Level | null>(null);
-  const [balances, setBalances] =
-    useState<BalanceMap>({});
   const [achievementStats, setAchievementStats] =
     useState({
       total: 0,
@@ -297,7 +273,6 @@ export default function PersonnagePage() {
             `/paxdei/characters/member/${id}`
           ),
           api<any>(`/levels/user/${id}`),
-          api<any>(`/economy/${id}`),
           Promise.all([
             api<any>("/achievements"),
             api<any>(`/achievements/user/${id}`),
@@ -329,24 +304,18 @@ export default function PersonnagePage() {
       }
 
       if (results[2].status === "fulfilled") {
-        setBalances(
-          results[2].value?.data?.balances ?? {}
-        );
-      }
-
-      if (results[3].status === "fulfilled") {
         const all = arr<Achievement>(
-          results[3].value[0],
+          results[2].value[0],
           "achievements"
         );
 
         const unlocked = arr<Achievement>(
-          results[3].value[1],
+          results[2].value[1],
           "achievements"
         );
 
         const featured = arr<Achievement>(
-          results[3].value[2],
+          results[2].value[2],
           "achievements"
         );
 
@@ -375,16 +344,16 @@ export default function PersonnagePage() {
         setActivities(achievementActivities);
       }
 
-      if (results[4].status === "fulfilled") {
+      if (results[3].status === "fulfilled") {
         const allQuests = arr<any>(
-          results[4].value[0],
+          results[3].value[0],
           "quests"
         ).filter(
           (item) => item.enabled !== false
         );
 
         const userQuests = arr<Quest>(
-          results[4].value[1],
+          results[3].value[1],
           "userQuests"
         );
 
@@ -1162,48 +1131,6 @@ export default function PersonnagePage() {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-green-800 bg-green-900/50 p-6 shadow-xl">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm uppercase tracking-[0.2em] text-amber-400">
-                  Économie
-                </p>
-                <h2 className="mt-1 text-2xl font-bold">
-                  Votre patrimoine
-                </h2>
-              </div>
-
-              <Link
-                href={`/economie/${encodeURIComponent(id)}`}
-                className="text-sm font-semibold text-amber-400 hover:text-amber-300"
-              >
-                Détail →
-              </Link>
-            </div>
-
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              <Balance
-                icon="🪙"
-                label="Solidus"
-                value={balances.solidus ?? 0}
-              />
-              <Balance
-                icon="⚪"
-                label="Argent"
-                value={balances.argent ?? 0}
-              />
-              <Balance
-                icon="🟤"
-                label="Bronze"
-                value={balances.bronze ?? 0}
-              />
-            </div>
-
-            <p className="mt-4 text-sm text-green-400">
-              Les transactions détaillées restent disponibles
-              sur la page Économie.
-            </p>
-          </section>
         </section>
 
         <section className="mb-6 rounded-2xl border border-green-800 bg-green-900/50 p-6 shadow-xl">
