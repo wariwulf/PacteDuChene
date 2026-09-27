@@ -14,7 +14,8 @@ import {
 } from "./levels.controller";
 
 import { requireAuth } from "../../middleware/auth.middleware";
-import { requireRole } from "../../middleware/role.middleware";
+import { requireRole, requirePermission } from "../../middleware/role.middleware";
+import { SITE_PERMISSIONS } from "../../common/security/permissions";
 
 const router = Router();
 
@@ -79,14 +80,14 @@ router.get(
 router.post(
   "/user/:userId/xp/add",
   requireAuth,
-  requireRole("ADMIN", "OWNER"),
+  requirePermission(SITE_PERMISSIONS.LEVELS_XP_MANAGE),
   addXp
 );
 
 router.post(
   "/user/:userId/xp/remove",
   requireAuth,
-  requireRole("ADMIN", "OWNER"),
+  requirePermission(SITE_PERMISSIONS.LEVELS_XP_MANAGE),
   removeXp
 );
 

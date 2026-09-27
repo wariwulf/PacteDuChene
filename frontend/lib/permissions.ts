@@ -6,6 +6,7 @@ export const SITE_PERMISSIONS = {
   ECONOMY_EXCHANGE_RATES_MANAGE: "economy.exchangeRates.manage",
   CLAN_EVENTS_MANAGE: "clan-events.manage",
   FACTIONS_MANAGE: "factions.manage",
+  LEVELS_XP_MANAGE: "levels.xp.manage",
 } as const;
 
 export type SitePermission =

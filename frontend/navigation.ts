@@ -13,71 +13,19 @@ export interface NavigationItem {
 }
 
 export const navigation: NavigationItem[] = [
-  {
-    label: "Accueil",
-    href: "/",
-    access: "public",
-  },
-  {
-    label: "Actualités",
-    href: "/news",
-    access: "public",
-  },
-  {
-    label: "Lore",
-    href: "/lore",
-    access: "public",
-  },
-  {
-    label: "Clan",
-    href: "/clan",
-    access: "member",
-  },
-  {
-    label: "Personnage",
-    href: "/espace-membre/personnage",
-    access: "member",
-  },
-  {
-    label: "Inventaire",
-    href: "/inventaire",
-    access: "member",
-  },
-  {
-    label: "Quêtes",
-    href: "/espace-membre/quetes",
-    access: "member",
-  },
-  {
-    label: "Exploits",
-    href: "/espace-membre/exploits",
-    access: "member",
-  },
-  {
-    label: "Boutiques",
-    href: "/boutiques",
-    access: "member",
-  },
-  {
-    label: "Événements",
-    href: "/espace-membre/evenements",
-    access: "member",
-  },
-  {
-    label: "Factions",
-    href: "/factions",
-    access: "member",
-  },
-  {
-    label: "Mes commandes",
-    href: "/espace-membre/commandes",
-    access: "member",
-  },
-  {
-    label: "Discord",
-    href: "/discord",
-    access: "member",
-  },
+  { label: "Accueil", href: "/", access: "public" },
+  { label: "Actualités", href: "/news", access: "public" },
+  { label: "Lore", href: "/lore", access: "public" },
+  { label: "Clan", href: "/clan", access: "member" },
+  { label: "Personnage", href: "/espace-membre/personnage", access: "member" },
+  { label: "Inventaire", href: "/inventaire", access: "member" },
+  { label: "Quêtes", href: "/espace-membre/quetes", access: "member" },
+  { label: "Exploits", href: "/espace-membre/exploits", access: "member" },
+  { label: "Boutiques", href: "/boutiques", access: "member" },
+  { label: "Événements", href: "/espace-membre/evenements", access: "member" },
+  { label: "Factions", href: "/factions", access: "member" },
+  { label: "Mes commandes", href: "/espace-membre/commandes", access: "member" },
+  { label: "Discord", href: "/discord", access: "member" },
 ];
 
 export const administrationNavigation: NavigationItem[] = [
@@ -141,7 +89,7 @@ export const administrationNavigation: NavigationItem[] = [
     access: "admin",
     adminOnly: true,
   },
-   {
+  {
     label: "Événements",
     href: "/administration/evenements",
     access: "admin",
@@ -153,12 +101,12 @@ export const administrationNavigation: NavigationItem[] = [
     access: "admin",
     permission: "factions.manage",
   },
-    {
+  {
     label: "Catalogues Pax Dei",
     href: "/administration/paxdei/catalogue",
     access: "admin",
     adminOnly: true,
-  }
+  },
 ];
 
 export const memberNavigation = navigation.filter(

@@ -1,750 +1,149 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-
-import {
-  addUserXp,
-  getUserLevel,
-  removeUserXp,
-  setUserLevel,
-  setUserXp,
-} from "@/services/levels.service";
-
+import { addUserXp, getUserLevel, removeUserXp } from "@/services/levels.service";
 import { getMembers } from "@/services/members.service";
 
-import type { Member } from "@/services/members.service";
-import type { UserLevel } from "@/types/levels.types";
+type AdminMember = { id: string; username: string; displayName?: string; avatar?: string; role?: string };
+type MemberLevel = { xp: number; level: number; levelName: string; progressPercent?: number };
+type MembersResponse = { success: boolean; data?: { members?: AdminMember[]; users?: AdminMember[] }; members?: AdminMember[]; users?: AdminMember[]; message?: string };
 
-type Operation = "ADD" | "REMOVE" | "SET_XP" | "SET_LEVEL";
+function normalizeMembers(payload: MembersResponse): AdminMember[] {
+  const raw: any[] = payload?.data?.members ?? payload?.data?.users ?? payload?.members ?? payload?.users ?? [];
+  if (!Array.isArray(raw)) return [];
+  return raw.map((m: any) => {
+    const id = m?.id ?? m?._id ?? m?.profile?.id ?? m?.userId;
+    if (!id) return null;
+    return { id: String(id), username: m?.username ?? m?.profile?.username ?? m?.discord?.username ?? "", displayName: m?.displayName ?? m?.profile?.displayName ?? m?.paxDei?.characterName ?? m?.discord?.username, avatar: m?.avatar ?? m?.profile?.avatar ?? undefined, role: m?.role ?? m?.profile?.role };
+  }).filter(Boolean) as AdminMember[];
+}
+function nameOf(m: AdminMember) { return m.displayName || m.username || `Membre ${m.id.slice(0, 8)}`; }
 
 export default function MemberLevelManager() {
-  const [members, setMembers] = useState<Member[]>([]);
-  const [selectedUserId, setSelectedUserId] = useState("");
-
-  const [userLevel, setUserLevelData] =
-    useState<UserLevel | null>(null);
-
+  const [members, setMembers] = useState<AdminMember[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
-
-  const [operation, setOperation] =
-    useState<Operation>("ADD");
-
-  const [amount, setAmount] = useState("");
+  const [amount, setAmount] = useState("1");
+  const [operation, setOperation] = useState<"ADD" | "REMOVE">("ADD");
   const [reason, setReason] = useState("");
-
-  const [loadingMembers, setLoadingMembers] =
-    useState(true);
-
-  const [loadingLevel, setLoadingLevel] =
-    useState(false);
-
-  const [submitting, setSubmitting] =
-    useState(false);
-
+  const [levels, setLevels] = useState<Record<string, MemberLevel>>({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
-  // ============================================================
-  // MEMBRES
-  // ============================================================
-
-  useEffect(() => {
-    loadMembers();
-  }, []);
+  const [message, setMessage] = useState("");
 
   async function loadMembers() {
-    try {
-      setLoadingMembers(true);
-      setError("");
-
-      const data = await getMembers();
-
-      setMembers(data);
-    } catch (err) {
-      console.error(
-        "Erreur récupération membres :",
-        err
-      );
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Impossible de récupérer les membres."
-      );
-    } finally {
-      setLoadingMembers(false);
-    }
-  }
-
-  // ============================================================
-  // MEMBRE SÉLECTIONNÉ
-  // ============================================================
-
-  const selectedMember = useMemo(
-    () =>
-      members.find(
-        (member) =>
-          member.profile.id === selectedUserId
-      ) ?? null,
-    [members, selectedUserId]
-  );
-
-  // ============================================================
-  // RECHERCHE
-  // ============================================================
-
-  const filteredMembers = useMemo(() => {
-    const value = search.trim().toLowerCase();
-
-    if (!value) {
-      return members;
-    }
-
-    return members.filter((member) => {
-      const username =
-        member.profile.username?.toLowerCase() ?? "";
-
-      const displayName =
-        member.profile.displayName?.toLowerCase() ?? "";
-
-      const email =
-        member.profile.email?.toLowerCase() ?? "";
-
-      return (
-        username.includes(value) ||
-        displayName.includes(value) ||
-        email.includes(value)
-      );
-    });
-  }, [members, search]);
-
-  // ============================================================
-  // CHARGEMENT DU NIVEAU
-  // ============================================================
-
-  useEffect(() => {
-    if (!selectedUserId) {
-      setUserLevelData(null);
-      return;
-    }
-
-    loadUserLevel(selectedUserId);
-  }, [selectedUserId]);
-
-  async function loadUserLevel(userId: string) {
-    try {
-      setLoadingLevel(true);
-      setError("");
-      setSuccess("");
-
-      const data = await getUserLevel(userId);
-
-      setUserLevelData(data);
-    } catch (err) {
-      console.error(
-        "Erreur récupération niveau :",
-        err
-      );
-
-      setUserLevelData(null);
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Impossible de récupérer le niveau du membre."
-      );
-    } finally {
-      setLoadingLevel(false);
-    }
-  }
-
-  // ============================================================
-  // OPÉRATION
-  // ============================================================
-
-  function resetMessages() {
+  try {
+    setLoading(true);
     setError("");
-    setSuccess("");
+
+    const loadedMembers = await getMembers();
+
+    const normalizedMembers: AdminMember[] = loadedMembers.map((member) => ({
+      id: member.profile.id,
+      username: member.profile.username,
+      displayName: member.profile.displayName,
+      avatar: undefined,
+      role: member.profile.role,
+    }));
+
+    setMembers(normalizedMembers);
+
+    if (normalizedMembers.length === 0) {
+      setError("Aucun membre n'a été trouvé.");
+    }
+
+    const levelEntries = await Promise.all(
+      normalizedMembers.map(async (member) => {
+        try {
+          const level = await getUserLevel(member.id);
+          return [member.id, level] as const;
+        } catch {
+          return null;
+        }
+      })
+    );
+
+    const map: Record<string, MemberLevel> = {};
+
+    for (const entry of levelEntries) {
+      if (entry) {
+        map[entry[0]] = entry[1];
+      }
+    }
+
+    setLevels(map);
+  } catch (err) {
+    console.error("Erreur chargement membres :", err);
+
+    setError(
+      err instanceof Error
+        ? err.message
+        : "Impossible de charger les membres."
+    );
+  } finally {
+    setLoading(false);
+  }
+}
+  useEffect(() => { void loadMembers(); }, []);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return members;
+    return members.filter(m => [m.displayName, m.username, m.id].filter(Boolean).some(v => String(v).toLowerCase().includes(q)));
+  }, [members, search]);
+  const allSelected = filtered.length > 0 && filtered.every(m => selectedIds.includes(m.id));
+
+  function toggle(id: string) { setSelectedIds(cur => cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id]); }
+  function toggleAll() {
+    const ids = filtered.map(m => m.id);
+    setSelectedIds(cur => allSelected ? cur.filter(id => !ids.includes(id)) : Array.from(new Set([...cur, ...ids])));
   }
 
-  function handleOperationChange(
-    value: Operation
-  ) {
-    resetMessages();
-
-    setOperation(value);
-    setAmount("");
-  }
-
-  // ============================================================
-  // MODIFICATION
-  // ============================================================
-
-  async function handleSubmit(
-    event: React.FormEvent<HTMLFormElement>
-  ) {
-    event.preventDefault();
-
-    resetMessages();
-
-    if (!selectedUserId) {
-      setError("Veuillez sélectionner un membre.");
-      return;
-    }
-
-    if (!amount.trim()) {
-      setError("Veuillez renseigner une valeur.");
-      return;
-    }
-
-    const numericValue = Number(amount);
-
-    if (
-      !Number.isFinite(numericValue) ||
-      !Number.isInteger(numericValue)
-    ) {
-      setError(
-        "La valeur doit être un nombre entier."
-      );
-      return;
-    }
-
-    if (numericValue < 0) {
-      setError(
-        "La valeur ne peut pas être négative."
-      );
-      return;
-    }
-
-    if (!reason.trim()) {
-      setError(
-        "Une raison est obligatoire pour une modification administrative."
-      );
-      return;
-    }
+  async function applyXp() {
+    const numericAmount = Math.floor(Number(amount));
+    if (!selectedIds.length) return setError("Sélectionnez au moins un membre.");
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) return setError("Le montant d'XP doit être un entier supérieur à 0.");
+    if (!reason.trim()) return setError("Une justification est obligatoire.");
+    if (!window.confirm(`Vous allez ${operation === "ADD" ? "ajouter" : "retirer"} ${numericAmount.toLocaleString("fr-FR")} XP à ${selectedIds.length} membre(s).\n\nJustification : ${reason.trim()}\n\nConfirmer ?`)) return;
 
     try {
-      setSubmitting(true);
-
-      let result: UserLevel;
-
-      switch (operation) {
-        case "ADD":
-          if (numericValue <= 0) {
-            throw new Error(
-              "La quantité d'XP à ajouter doit être supérieure à 0."
-            );
-          }
-
-          result = await addUserXp(
-            selectedUserId,
-            {
-              amount: numericValue,
-              reason: reason.trim(),
-            }
-          );
-
-          break;
-
-        case "REMOVE":
-          if (numericValue <= 0) {
-            throw new Error(
-              "La quantité d'XP à retirer doit être supérieure à 0."
-            );
-          }
-
-          result = await removeUserXp(
-            selectedUserId,
-            {
-              amount: numericValue,
-              reason: reason.trim(),
-            }
-          );
-
-          break;
-
-        case "SET_XP":
-          result = await setUserXp(
-            selectedUserId,
-            {
-              xp: numericValue,
-              reason: reason.trim(),
-            }
-          );
-
-          break;
-
-        case "SET_LEVEL":
-          if (numericValue < 1) {
-            throw new Error(
-              "Le niveau doit être supérieur ou égal à 1."
-            );
-          }
-
-          result = await setUserLevel(
-            selectedUserId,
-            {
-              level: numericValue,
-              reason: reason.trim(),
-            }
-          );
-
-          break;
-
-        default:
-          throw new Error(
-            "Opération inconnue."
-          );
+      setSaving(true); setError(""); setMessage("");
+      let ok = 0; const failures: string[] = [];
+      for (const id of selectedIds) {
+        try {
+          const payload: any = { amount: numericAmount, reason: reason.trim(), description: reason.trim(), source: "ADMIN" };
+          if (operation === "ADD") await addUserXp(id, payload); else await removeUserXp(id, payload);
+          ok++;
+        } catch { failures.push(nameOf(members.find(m => m.id === id) ?? { id, username: "" })); }
       }
-
-      setUserLevelData(result);
-
-      setSuccess(
-        "Modification du niveau effectuée avec succès."
-      );
-
-      setAmount("");
-      setReason("");
-    } catch (err) {
-      console.error(
-        "Erreur modification niveau :",
-        err
-      );
-
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Impossible de modifier le niveau."
-      );
-    } finally {
-      setSubmitting(false);
-    }
+      await loadMembers(); setSelectedIds([]); setReason("");
+      if (failures.length) setError(`${ok} opération(s) réussie(s). Échec pour : ${failures.join(", ")}.`);
+      else setMessage(`${ok} membre(s) ont reçu la modification de ${numericAmount.toLocaleString("fr-FR")} XP.`);
+    } catch (err) { setError(err instanceof Error ? err.message : "Impossible d'appliquer la modification d'XP."); }
+    finally { setSaving(false); }
   }
 
-  // ============================================================
-  // AFFICHAGE
-  // ============================================================
+  return <section className="space-y-6">
+    <div><p className="text-xs font-bold uppercase tracking-[.22em] text-amber-500">Opération</p><h2 className="mt-1 text-2xl font-bold text-[#f2ead2]">Modifier l'expérience</h2><p className="mt-2 text-sm leading-6 text-emerald-300/75">Sélectionnez plusieurs membres et ajoutez ou retirez de l'XP en une seule opération. Les niveaux eux-mêmes ne sont pas modifiables ici.</p></div>
+    {error && <div className="rounded-xl border border-red-900/80 bg-red-950/30 p-4 text-sm text-red-300">{error}</div>}
+    {message && <div className="rounded-xl border border-emerald-700/70 bg-emerald-950/40 p-4 text-sm text-emerald-200">{message}</div>}
 
-  return (
-    <div className="space-y-8">
-      {/* ====================================================== */}
-      {/* SÉLECTION DU MEMBRE                                    */}
-      {/* ====================================================== */}
-
-      <section className="rounded-xl border border-white/10 bg-black/20 p-6">
-        <div className="mb-5">
-          <h2 className="text-xl font-semibold text-white">
-            Gestion du niveau d'un membre
-          </h2>
-
-          <p className="mt-1 text-sm text-white/60">
-            Sélectionnez un membre pour consulter et
-            modifier sa progression.
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          <div>
-            <label
-              htmlFor="member-search"
-              className="mb-2 block text-sm font-medium text-white/80"
-            >
-              Rechercher un membre
-            </label>
-
-            <input
-              id="member-search"
-              type="text"
-              value={search}
-              onChange={(event) =>
-                setSearch(event.target.value)
-              }
-              placeholder="Pseudo, nom ou adresse e-mail..."
-              className="w-full rounded-lg border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-            />
-          </div>
-
-          <div>
-            <label
-              htmlFor="member-select"
-              className="mb-2 block text-sm font-medium text-white/80"
-            >
-              Membre
-            </label>
-
-            {loadingMembers ? (
-              <div className="rounded-lg border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/60">
-                Chargement des membres...
-              </div>
-            ) : (
-              <select
-                id="member-select"
-                value={selectedUserId}
-                onChange={(event) =>
-                  setSelectedUserId(
-                    event.target.value
-                  )
-                }
-                className="w-full rounded-lg border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-              >
-                <option value="">
-                  Sélectionner un membre
-                </option>
-
-                {filteredMembers.map((member) => (
-                  <option
-                    key={member.profile.id}
-                    value={member.profile.id}
-                  >
-                    {member.profile.displayName ||
-                      member.profile.username}{" "}
-                    — {member.profile.email}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* ====================================================== */}
-      {/* ERREUR / SUCCÈS                                        */}
-      {/* ====================================================== */}
-
-      {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-          {error}
-        </div>
-      )}
-
-      {success && (
-        <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-300">
-          {success}
-        </div>
-      )}
-
-      {/* ====================================================== */}
-      {/* INFORMATIONS MEMBRE                                    */}
-      {/* ====================================================== */}
-
-      {selectedMember && (
-        <section className="rounded-xl border border-white/10 bg-black/20 p-6">
-          <div className="mb-5">
-            <h2 className="text-xl font-semibold text-white">
-              {selectedMember.profile.displayName ||
-                selectedMember.profile.username}
-            </h2>
-
-            <p className="text-sm text-white/50">
-              {selectedMember.profile.email}
-            </p>
-          </div>
-
-          {loadingLevel ? (
-            <div className="py-8 text-center text-white/60">
-              Chargement du niveau...
-            </div>
-          ) : userLevel ? (
-            <div className="space-y-6">
-              {/* Niveau / XP */}
-
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="rounded-lg border border-white/10 bg-black/20 p-5">
-                  <p className="text-sm text-white/50">
-                    Niveau
-                  </p>
-
-                  <p className="mt-2 text-3xl font-bold text-white">
-                    {userLevel.level}
-                  </p>
-
-                  <p className="mt-1 text-sm text-white/60">
-                    {userLevel.levelName}
-                  </p>
-                </div>
-
-                <div className="rounded-lg border border-white/10 bg-black/20 p-5">
-                  <p className="text-sm text-white/50">
-                    XP totale
-                  </p>
-
-                  <p className="mt-2 text-3xl font-bold text-white">
-                    {userLevel.xp}
-                  </p>
-                </div>
-
-                <div className="rounded-lg border border-white/10 bg-black/20 p-5">
-                  <p className="text-sm text-white/50">
-                    Progression
-                  </p>
-
-                  <p className="mt-2 text-3xl font-bold text-white">
-                    {userLevel.progressPercent}%
-                  </p>
-                </div>
-              </div>
-
-              {/* Barre XP */}
-
-              <div>
-                <div className="mb-2 flex justify-between text-sm">
-                  <span className="text-white/60">
-                    Progression vers le niveau suivant
-                  </span>
-
-                  <span className="text-white/80">
-                    {userLevel.nextLevelXp !== null
-                      ? `${userLevel.progressXp} / ${
-                          userLevel.nextLevelXp -
-                          userLevel.currentLevelXp
-                        } XP`
-                      : "Niveau maximum"}
-                  </span>
-                </div>
-
-                <div className="h-3 overflow-hidden rounded-full bg-white/10">
-                  <div
-                    className="h-full rounded-full bg-white transition-all"
-                    style={{
-                      width: `${Math.min(
-                        100,
-                        Math.max(
-                          0,
-                          userLevel.progressPercent
-                        )
-                      )}%`,
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          ) : (
-            <p className="text-white/60">
-              Impossible de récupérer les informations
-              de niveau.
-            </p>
-          )}
-        </section>
-      )}
-
-      {/* ====================================================== */}
-      {/* MODIFICATION                                            */}
-      {/* ====================================================== */}
-
-      {selectedMember && userLevel && (
-        <section className="rounded-xl border border-white/10 bg-black/20 p-6">
-          <div className="mb-5">
-            <h2 className="text-xl font-semibold text-white">
-              Modification administrative
-            </h2>
-
-            <p className="mt-1 text-sm text-white/60">
-              Toutes les modifications sont enregistrées
-              dans l'historique du membre.
-            </p>
-          </div>
-
-          <form
-            onSubmit={handleSubmit}
-            className="space-y-5"
-          >
-            {/* Type d'opération */}
-
-            <div>
-              <label
-                htmlFor="level-operation"
-                className="mb-2 block text-sm font-medium text-white/80"
-              >
-                Opération
-              </label>
-
-              <select
-                id="level-operation"
-                value={operation}
-                onChange={(event) =>
-                  handleOperationChange(
-                    event.target.value as Operation
-                  )
-                }
-                className="w-full rounded-lg border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-              >
-                <option value="ADD">
-                  Ajouter de l'XP
-                </option>
-
-                <option value="REMOVE">
-                  Retirer de l'XP
-                </option>
-
-                <option value="SET_XP">
-                  Définir l'XP
-                </option>
-
-                <option value="SET_LEVEL">
-                  Définir le niveau
-                </option>
-              </select>
-            </div>
-
-            {/* Valeur */}
-
-            <div>
-              <label
-                htmlFor="level-amount"
-                className="mb-2 block text-sm font-medium text-white/80"
-              >
-                {operation === "SET_LEVEL"
-                  ? "Niveau"
-                  : operation === "SET_XP"
-                  ? "XP totale"
-                  : "Quantité d'XP"}
-              </label>
-
-              <input
-                id="level-amount"
-                type="number"
-                min="0"
-                step="1"
-                value={amount}
-                onChange={(event) =>
-                  setAmount(event.target.value)
-                }
-                placeholder={
-                  operation === "SET_LEVEL"
-                    ? "Ex. 5"
-                    : "Ex. 250"
-                }
-                className="w-full rounded-lg border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-              />
-            </div>
-
-            {/* Raison */}
-
-            <div>
-              <label
-                htmlFor="level-reason"
-                className="mb-2 block text-sm font-medium text-white/80"
-              >
-                Motif de la modification
-              </label>
-
-              <textarea
-                id="level-reason"
-                value={reason}
-                onChange={(event) =>
-                  setReason(event.target.value)
-                }
-                rows={3}
-                placeholder="Ex. Récompense exceptionnelle pour participation à un événement RP."
-                className="w-full resize-none rounded-lg border border-white/10 bg-black/30 px-4 py-3 text-white outline-none transition focus:border-white/30"
-              />
-            </div>
-
-            {/* Bouton */}
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="rounded-lg bg-white px-5 py-3 font-medium text-black transition hover:bg-white/90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {submitting
-                ? "Modification..."
-                : "Appliquer la modification"}
-            </button>
-          </form>
-        </section>
-      )}
-
-      {/* ====================================================== */}
-      {/* HISTORIQUE                                              */}
-      {/* ====================================================== */}
-
-      {selectedMember &&
-        userLevel &&
-        userLevel.history.length > 0 && (
-          <section className="rounded-xl border border-white/10 bg-black/20 p-6">
-            <div className="mb-5">
-              <h2 className="text-xl font-semibold text-white">
-                Historique
-              </h2>
-
-              <p className="text-sm text-white/60">
-                Dernières modifications enregistrées.
-              </p>
-            </div>
-
-            <div className="space-y-3">
-              {[...userLevel.history]
-                .reverse()
-                .map((entry, index) => (
-                  <div
-                    key={`${entry.createdAt}-${index}`}
-                    className="rounded-lg border border-white/10 bg-black/20 p-4"
-                  >
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div>
-                        <span className="font-medium text-white">
-                          {entry.action}
-                        </span>
-
-                        <span className="ml-3 text-sm text-white/50">
-                          {entry.source}
-                        </span>
-                      </div>
-
-                      <span className="text-xs text-white/40">
-                        {new Date(
-                          entry.createdAt
-                        ).toLocaleString("fr-FR")}
-                      </span>
-                    </div>
-
-                    <div className="mt-3 grid gap-2 text-sm md:grid-cols-3">
-                      <div>
-                        <span className="text-white/40">
-                          XP
-                        </span>
-
-                        <p className="text-white">
-                          {entry.previousXp} →{" "}
-                          {entry.newXp}
-                        </p>
-                      </div>
-
-                      <div>
-                        <span className="text-white/40">
-                          Niveau
-                        </span>
-
-                        <p className="text-white">
-                          {entry.previousLevel} →{" "}
-                          {entry.newLevel}
-                        </p>
-                      </div>
-
-                      <div>
-                        <span className="text-white/40">
-                          Quantité
-                        </span>
-
-                        <p className="text-white">
-                          {entry.amount !== undefined
-                            ? entry.amount
-                            : "—"}
-                        </p>
-                      </div>
-                    </div>
-
-                    {entry.reason && (
-                      <p className="mt-3 border-t border-white/10 pt-3 text-sm text-white/60">
-                        {entry.reason}
-                      </p>
-                    )}
-                  </div>
-                ))}
-            </div>
-          </section>
-        )}
+    <div className="rounded-2xl border border-emerald-900/70 bg-[#061a10]/95 p-6 shadow-xl">
+      <div className="grid gap-4 lg:grid-cols-2">
+        {(["ADD", "REMOVE"] as const).map(op => <button key={op} type="button" onClick={() => setOperation(op)} className={`rounded-xl border p-5 text-left transition ${operation === op ? "border-amber-500 bg-amber-950/30" : "border-emerald-800 bg-[#071a12] hover:border-emerald-600"}`}><p className="text-lg font-bold text-[#f2ead2]">{op === "ADD" ? "Donner" : "Retirer"}</p><p className="mt-1 text-sm text-emerald-300">{op === "ADD" ? "Ajouter de l'expérience aux membres sélectionnés." : "Retirer de l'expérience aux membres sélectionnés."}</p></button>)}
+      </div>
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        <label><span className="mb-2 block text-sm font-semibold text-[#f2ead2]">XP par membre</span><input type="number" min={1} step={1} value={amount} onChange={e => setAmount(e.target.value)} className="w-full rounded-xl border border-emerald-800 bg-[#03150c] px-4 py-3 text-white outline-none focus:border-amber-500" /></label>
+        <div className="rounded-xl border border-emerald-900 bg-[#03150c] p-4"><p className="text-xs uppercase tracking-[.18em] text-emerald-400">Sélection</p><p className="mt-1 text-2xl font-bold text-amber-400">{selectedIds.length}</p><p className="text-sm text-emerald-300">membre(s) sélectionné(s)</p></div>
+      </div>
+      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-end"><label className="block flex-1"><span className="mb-2 block text-sm font-semibold text-[#f2ead2]">Rechercher un membre</span><input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Pseudo, nom..." className="w-full rounded-xl border border-emerald-800 bg-[#03150c] px-4 py-3 text-white outline-none focus:border-amber-500" /></label><button type="button" onClick={toggleAll} disabled={!filtered.length} className="rounded-xl border border-emerald-700 px-4 py-3 font-semibold text-emerald-100 hover:border-amber-500 hover:text-amber-300 disabled:opacity-40">{allSelected ? "Tout désélectionner" : "Sélectionner tout"}</button></div>
+      <div className="mt-4 max-h-[420px] overflow-y-auto rounded-xl border border-emerald-800 bg-[#03150c]">
+        {loading ? <p className="p-6 text-center text-emerald-300">Chargement des membres…</p> : !filtered.length ? <p className="p-6 text-center text-emerald-300">Aucun membre trouvé.</p> : filtered.map(m => { const selected = selectedIds.includes(m.id); const level = levels[m.id]; return <label key={m.id} className={`flex cursor-pointer items-center gap-4 border-b border-emerald-900/70 p-4 transition last:border-b-0 ${selected ? "bg-amber-950/25" : "hover:bg-emerald-950/40"}`}><input type="checkbox" checked={selected} onChange={() => toggle(m.id)} className="h-5 w-5 accent-amber-500" />{m.avatar ? <img src={m.avatar} alt="" className="h-10 w-10 rounded-full object-cover" /> : <div className="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-800 bg-emerald-950 text-amber-400">{nameOf(m).charAt(0).toUpperCase()}</div>}<div className="min-w-0 flex-1"><p className="truncate font-semibold text-white">{nameOf(m)}</p><p className="truncate text-xs text-emerald-400">@{m.username || m.id}</p></div><div className="shrink-0 text-right"><p className="text-sm font-bold text-amber-400">{(level?.xp ?? 0).toLocaleString("fr-FR")} XP</p><p className="text-xs text-emerald-500">Niveau {level?.level ?? "—"}</p></div></label> })}
+      </div>
+      <label className="mt-6 block"><span className="mb-2 block text-sm font-semibold text-[#f2ead2]">Justification</span><textarea value={reason} onChange={e => setReason(e.target.value)} maxLength={500} rows={4} placeholder="Expliquez pourquoi cette opération est effectuée..." className="w-full resize-y rounded-xl border border-emerald-800 bg-[#03150c] px-4 py-3 text-white outline-none focus:border-amber-500" /><p className="mt-1 text-right text-xs text-emerald-500">{reason.length}/500</p></label>
+      <div className="mt-5 rounded-xl border border-amber-800/70 bg-amber-950/20 p-4 text-sm text-amber-200">Vous allez <strong>{operation === "ADD" ? "ajouter" : "retirer"} {Number(amount || 0).toLocaleString("fr-FR")} XP</strong> à <strong>{selectedIds.length}</strong> membre(s).</div>
+      <button type="button" onClick={() => void applyXp()} disabled={saving || loading || !selectedIds.length || !amount || !reason.trim()} className="mt-5 w-full rounded-xl border border-amber-500 bg-amber-700 px-5 py-3 font-bold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-40">{saving ? "Application en cours..." : operation === "ADD" ? "Donner l'expérience" : "Retirer l'expérience"}</button>
     </div>
-  );
+  </section>;
 }

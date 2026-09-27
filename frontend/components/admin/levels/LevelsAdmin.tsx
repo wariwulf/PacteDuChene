@@ -25,6 +25,7 @@ import MemberLevelManager from "./MemberLevelManager";
 export default function LevelsAdmin() {
   const { user } = useAuth();
   const isOwner = user?.role === "OWNER";
+  const isAdmin = user?.role === "ADMIN" || user?.role === "OWNER";
 
   const [levels, setLevels] = useState<LevelDefinition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -182,14 +183,16 @@ export default function LevelsAdmin() {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={openCreate}
-            disabled={saving}
-            className="rounded-xl border border-amber-600 bg-amber-700/90 px-5 py-3 font-bold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            + Ajouter un niveau
-          </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={openCreate}
+              disabled={saving}
+              className="rounded-xl border border-amber-600 bg-amber-700/90 px-5 py-3 font-bold text-white transition hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              + Ajouter un niveau
+            </button>
+          )}
         </div>
       </header>
 
@@ -202,7 +205,7 @@ export default function LevelsAdmin() {
         </div>
       )}
 
-      {(showForm || editingLevel) && (
+      {isAdmin && (showForm || editingLevel) && (
         <section>
           <LevelForm
             level={editingLevel}
@@ -218,31 +221,33 @@ export default function LevelsAdmin() {
         </section>
       )}
 
-      <section className="space-y-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[.2em] text-amber-500">
-              Paliers
-            </p>
-            <h2 className="mt-1 text-2xl font-bold text-[#f2ead2]">
-              Niveaux configurés
-            </h2>
+      {isAdmin && (
+        <section className="space-y-4">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[.2em] text-amber-500">
+                Paliers
+              </p>
+              <h2 className="mt-1 text-2xl font-bold text-[#f2ead2]">
+                Niveaux configurés
+              </h2>
+            </div>
+            {!loading && (
+              <p className="text-sm text-emerald-400">
+                {levels.length} niveau{levels.length > 1 ? "x" : ""} configuré{levels.length > 1 ? "s" : ""}
+              </p>
+            )}
           </div>
-          {!loading && (
-            <p className="text-sm text-emerald-400">
-              {levels.length} niveau{levels.length > 1 ? "x" : ""} configuré{levels.length > 1 ? "s" : ""}
-            </p>
-          )}
-        </div>
 
-        <LevelList
-          levels={levels}
-          loading={loading}
-          disabled={saving}
-          onEdit={openEdit}
-          onDelete={handleDelete}
-        />
-      </section>
+          <LevelList
+            levels={levels}
+            loading={loading}
+            disabled={saving}
+            onEdit={openEdit}
+            onDelete={handleDelete}
+          />
+        </section>
+      )}
 
 
       {isOwner && (
