@@ -10,7 +10,7 @@ import {
   uploadQuestStepImage,
 } from "@/services/quests.service";
 import QuestDifficulty from "@/components/admin/quests/QuestDifficulty";
-import type { QuestDefinition, QuestObjective, QuestStep } from "@/types/quests.types";
+import type { QuestCategory, QuestDefinition, QuestObjective, QuestStep } from "@/types/quests.types";
 
 type Props = { questId?: string };
 type ObjectiveForm = QuestObjective;
@@ -89,6 +89,7 @@ export default function QuestEditor({ questId }: Props) {
   const [error, setError] = useState("");
   const [questIdValue, setQuestIdValue] = useState(questId ?? "");
   const [name, setName] = useState("");
+  const [category, setCategory] = useState<QuestCategory>("MAIN");
   const [description, setDescription] = useState("");
   const [imageUrl, setImageUrl] = useState("");
   const [difficulty, setDifficulty] = useState(1);
@@ -130,6 +131,7 @@ export default function QuestEditor({ questId }: Props) {
           const quest = await getQuest(questId);
           setQuestIdValue(quest.questId);
           setName(quest.name);
+          setCategory(quest.category ?? "MAIN");
           setDescription(quest.description ?? "");
           setImageUrl(quest.imageUrl ?? "");
           setDifficulty(quest.difficulty ?? 1);
@@ -294,6 +296,7 @@ export default function QuestEditor({ questId }: Props) {
       const payload = {
         questId: finalQuestId,
         name: name.trim(),
+        category,
         description: description.trim() || undefined,
         imageUrl: imageUrl.trim() || undefined,
         difficulty: Number(difficulty),
@@ -342,8 +345,9 @@ export default function QuestEditor({ questId }: Props) {
             <div className="grid gap-5 md:grid-cols-2">
               <label className="block md:col-span-2"><span className="mb-2 block text-sm font-semibold">Nom</span><input value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500" /></label>
               <label className="block md:col-span-2"><span className="mb-2 block text-sm font-semibold">Image de la quête</span><input value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500" placeholder="/images/quetes/... ou URL complète" /><span className="mt-1 block text-xs text-gray-500">L'image principale reste utilisée dans le registre des quêtes.</span></label>
-              <label className="block"><span className="mb-2 block text-sm font-semibold">Difficulté</span><div className="rounded-lg border border-white/10 bg-black/20 px-4 py-3"><QuestDifficulty value={difficulty} /><input type="range" min={1} max={5} value={difficulty} onChange={(e) => setDifficulty(Number(e.target.value))} className="mt-3 w-full accent-amber-500" /></div></label>
-              <label className="block md:col-span-2"><span className="mb-2 block text-sm font-semibold">Description</span><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="w-full resize-y rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500" /></label>
+               <label className="block"><span className="mb-2 block text-sm font-semibold">Difficulté</span><div className="rounded-lg border border-white/10 bg-black/20 px-4 py-3"><QuestDifficulty value={difficulty} /><input type="range" min={1} max={5} value={difficulty} onChange={(e) => setDifficulty(Number(e.target.value))} className="mt-3 w-full accent-amber-500" /></div></label>
+               <label className="block"><span className="mb-2 block text-sm font-semibold">Catégorie</span><select value={category} onChange={(e) => setCategory(e.target.value as QuestCategory)} className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500"><option value="MAIN">Quête principale</option><option value="SECONDARY">Quête secondaire</option><option value="BROTHERHOOD">Quête de la Confrérie</option><option value="GUILD">Quête de la Guilde</option><option value="DOMAIN">Quête du Domaine</option></select></label>
+               <label className="block md:col-span-2"><span className="mb-2 block text-sm font-semibold">Description</span><textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={4} className="w-full resize-y rounded-lg border border-white/10 bg-black/20 px-4 py-3 outline-none focus:border-amber-500" /></label>
             </div>
             {imageUrl && <img src={imageUrl} alt="" className="mt-5 h-48 w-full rounded-xl object-cover" />}
           </section>

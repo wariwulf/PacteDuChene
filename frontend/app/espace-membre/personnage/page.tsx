@@ -22,6 +22,19 @@ type Member = {
   };
 };
 
+type LevelHistoryEntry = {
+  action: "XP_ADD" | "XP_REMOVE" | "XP_SET" | "LEVEL_SET" | string;
+  amount?: number;
+  source?: "QUEST" | "ACHIEVEMENT" | "ADMIN" | "EVENT" | string;
+  sourceId?: string;
+  reason?: string;
+  previousXp: number;
+  newXp: number;
+  previousLevel: number;
+  newLevel: number;
+  createdAt: string | Date;
+};
+
 type Level = {
   xp: number;
   level: number;
@@ -30,8 +43,10 @@ type Level = {
   nextLevelXp: number | null;
   progressXp: number;
   progressPercent: number;
+  history?: LevelHistoryEntry[];
 };
 
+type BalanceMap = Record<string, number>;
 
 type Character = {
   _id?: string;
@@ -151,7 +166,7 @@ function combatRoleIcon(role?: Character["combatRole"]) {
   return "⚔️";
 }
 
-function formatDate(value?: string) {
+function formatDate(value?: string | Date) {
   if (!value) return "";
 
   const date = new Date(value);
@@ -165,6 +180,54 @@ function formatDate(value?: string) {
     month: "long",
     year: "numeric",
   }).format(date);
+}
+
+function formatDateTime(value?: string | Date) {
+  if (!value) return "";
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+
+  return new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
+function levelHistoryActionLabel(action?: string) {
+  switch (action) {
+    case "XP_ADD":
+      return "XP ajoutée";
+    case "XP_REMOVE":
+      return "XP retirée";
+    case "XP_SET":
+      return "XP définie";
+    case "LEVEL_SET":
+      return "Niveau modifié";
+    default:
+      return action || "Progression";
+  }
+}
+
+function levelHistorySourceLabel(source?: string) {
+  switch (source) {
+    case "QUEST":
+      return "Quête";
+    case "ACHIEVEMENT":
+      return "Exploit";
+    case "ADMIN":
+      return "Administration";
+    case "EVENT":
+      return "Événement";
+    default:
+      return source || "Système";
+  }
 }
 
 function Stat({
@@ -186,6 +249,27 @@ function Stat({
   );
 }
 
+function Balance({
+  icon,
+  label,
+  value,
+}: {
+  icon: string;
+  label: string;
+  value: number;
+}) {
+  return (
+    <div className="rounded-xl border border-green-800 bg-green-950/60 p-4">
+      <div className="text-xl">{icon}</div>
+      <p className="mt-2 text-sm text-green-300">
+        {label}
+      </p>
+      <p className="mt-1 text-xl font-bold text-amber-400">
+        {value.toLocaleString("fr-FR")}
+      </p>
+    </div>
+  );
+}
 
 function TextStat({
   label,
@@ -223,6 +307,8 @@ export default function PersonnagePage() {
     useState<Member | null>(null);
   const [level, setLevel] =
     useState<Level | null>(null);
+  const [balances, setBalances] =
+    useState<BalanceMap>({});
   const [achievementStats, setAchievementStats] =
     useState({
       total: 0,
@@ -273,6 +359,7 @@ export default function PersonnagePage() {
             `/paxdei/characters/member/${id}`
           ),
           api<any>(`/levels/user/${id}`),
+          api<any>(`/economy/${id}`),
           Promise.all([
             api<any>("/achievements"),
             api<any>(`/achievements/user/${id}`),
@@ -304,18 +391,24 @@ export default function PersonnagePage() {
       }
 
       if (results[2].status === "fulfilled") {
+        setBalances(
+          results[2].value?.data?.balances ?? {}
+        );
+      }
+
+      if (results[3].status === "fulfilled") {
         const all = arr<Achievement>(
-          results[2].value[0],
+          results[3].value[0],
           "achievements"
         );
 
         const unlocked = arr<Achievement>(
-          results[2].value[1],
+          results[3].value[1],
           "achievements"
         );
 
         const featured = arr<Achievement>(
-          results[2].value[2],
+          results[3].value[2],
           "achievements"
         );
 
@@ -344,16 +437,16 @@ export default function PersonnagePage() {
         setActivities(achievementActivities);
       }
 
-      if (results[3].status === "fulfilled") {
+      if (results[4].status === "fulfilled") {
         const allQuests = arr<any>(
-          results[3].value[0],
+          results[4].value[0],
           "quests"
         ).filter(
           (item) => item.enabled !== false
         );
 
         const userQuests = arr<Quest>(
-          results[3].value[1],
+          results[4].value[1],
           "userQuests"
         );
 
@@ -1131,6 +1224,48 @@ export default function PersonnagePage() {
             </div>
           </section>
 
+          <section className="rounded-2xl border border-green-800 bg-green-900/50 p-6 shadow-xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-sm uppercase tracking-[0.2em] text-amber-400">
+                  Économie
+                </p>
+                <h2 className="mt-1 text-2xl font-bold">
+                  Votre patrimoine
+                </h2>
+              </div>
+
+              <Link
+                href={`/economie/${encodeURIComponent(id)}`}
+                className="text-sm font-semibold text-amber-400 hover:text-amber-300"
+              >
+                Détail →
+              </Link>
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <Balance
+                icon="🪙"
+                label="Solidus"
+                value={balances.solidus ?? 0}
+              />
+              <Balance
+                icon="⚪"
+                label="Argent"
+                value={balances.argent ?? 0}
+              />
+              <Balance
+                icon="🟤"
+                label="Bronze"
+                value={balances.bronze ?? 0}
+              />
+            </div>
+
+            <p className="mt-4 text-sm text-green-400">
+              Les transactions détaillées restent disponibles
+              sur la page Économie.
+            </p>
+          </section>
         </section>
 
         <section className="mb-6 rounded-2xl border border-green-800 bg-green-900/50 p-6 shadow-xl">
@@ -1221,6 +1356,110 @@ export default function PersonnagePage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="mb-6 rounded-2xl border border-green-800 bg-green-900/50 p-6 shadow-xl">
+          <div className="flex items-end justify-between gap-4">
+            <div>
+              <p className="text-sm uppercase tracking-[0.2em] text-amber-400">
+                ✦ Progression
+              </p>
+              <h2 className="mt-1 text-2xl font-bold">
+                Historique de l'XP
+              </h2>
+              <p className="mt-2 text-green-300">
+                Retrouvez ici toutes les modifications de votre progression au sein du Pacte.
+              </p>
+            </div>
+
+            {level && (
+              <div className="hidden text-right sm:block">
+                <p className="text-xs uppercase tracking-wider text-green-400">
+                  XP actuelle
+                </p>
+                <p className="text-xl font-bold text-amber-400">
+                  {level.xp.toLocaleString("fr-FR")} XP
+                </p>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-5">
+            {(level?.history?.length ?? 0) === 0 ? (
+              <EmptyState>
+                Aucun historique d'XP n'est encore enregistré pour votre membre.
+              </EmptyState>
+            ) : (
+              <div className="max-h-[520px] space-y-3 overflow-y-auto pr-1">
+                {[...(level?.history ?? [])]
+                  .sort(
+                    (a, b) =>
+                      new Date(b.createdAt).getTime() -
+                      new Date(a.createdAt).getTime()
+                  )
+                  .map((entry, index) => {
+                    const isPositive =
+                      entry.action === "XP_ADD" ||
+                      (entry.amount ?? 0) > 0;
+                    const amount = Math.abs(Number(entry.amount ?? 0));
+                    const levelChanged =
+                      entry.previousLevel !== entry.newLevel;
+
+                    return (
+                      <article
+                        key={`${entry.createdAt}-${entry.action}-${index}`}
+                        className="rounded-xl border border-green-800 bg-green-950/70 p-4"
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-white">
+                              {entry.reason || levelHistoryActionLabel(entry.action)}
+                            </p>
+                            <p className="mt-1 text-xs text-green-400">
+                              {formatDateTime(entry.createdAt)} · {levelHistoryActionLabel(entry.action)}
+                              {entry.source ? ` · ${levelHistorySourceLabel(entry.source)}` : ""}
+                            </p>
+                          </div>
+
+                          <span
+                            className={`shrink-0 font-bold ${
+                              entry.action === "LEVEL_SET"
+                                ? "text-amber-300"
+                                : isPositive
+                                  ? "text-green-300"
+                                  : "text-red-300"
+                            }`}
+                          >
+                            {entry.action === "LEVEL_SET"
+                              ? `Niveau ${entry.newLevel}`
+                              : entry.action === "XP_SET"
+                                ? `${entry.newXp.toLocaleString("fr-FR")} XP`
+                                : `${isPositive ? "+" : "-"}${amount.toLocaleString("fr-FR")} XP`}
+                          </span>
+                        </div>
+
+                        <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                          <span className="rounded-full bg-green-900 px-2.5 py-1 text-green-200">
+                            XP : {entry.previousXp.toLocaleString("fr-FR")} → {entry.newXp.toLocaleString("fr-FR")}
+                          </span>
+                          {levelChanged && (
+                            <span className="rounded-full bg-amber-950/50 px-2.5 py-1 text-amber-200">
+                              Niveau : {entry.previousLevel} → {entry.newLevel}
+                            </span>
+                          )}
+                        </div>
+
+                        {entry.sourceId && (
+                          <p className="mt-2 break-all text-xs text-green-500">
+                            Référence : {entry.sourceId}
+                          </p>
+                        )}
+                      </article>
+                    );
+                  })}
               </div>
             )}
           </div>

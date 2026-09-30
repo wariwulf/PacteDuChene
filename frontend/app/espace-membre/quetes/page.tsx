@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/api/auth";
+import type { QuestCategory } from "@/types/quests.types";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
@@ -21,6 +22,7 @@ interface QuestObjective {
 interface Quest {
   questId: string;
   name: string;
+  category?: QuestCategory;
   description?: string;
   prerequisites?: string[];
   objectives: QuestObjective[];
@@ -57,6 +59,14 @@ const QUEST_STATUS_ASSETS = {
   active: "/images/quetes/Quetecours.png",
   completed: "/images/quetes/Quetefinis.png",
 } as const;
+
+const QUEST_CATEGORY_LABELS: Record<QuestCategory, string> = {
+  MAIN: "Quête principale",
+  SECONDARY: "Quête secondaire",
+  BROTHERHOOD: "Quête de la Confrérie",
+  GUILD: "Quête de la Guilde",
+  DOMAIN: "Quête du Domaine",
+};
 
 /* ============================================================
    HELPERS API
@@ -814,7 +824,7 @@ function QuestListItem({
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-[11px] font-bold uppercase tracking-[0.28em] text-amber-500">
-                Quête principale
+                {QUEST_CATEGORY_LABELS[quest.category ?? "MAIN"]}
               </p>
 
               <h3 className="mt-1 text-lg font-bold leading-tight text-white sm:text-xl">
