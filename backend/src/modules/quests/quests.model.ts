@@ -32,6 +32,12 @@ const questSchema = new Schema<QuestDocument>(
   {
     questId: { type: String, required: true, unique: true, trim: true },
     name: { type: String, required: true, trim: true },
+    category: {
+      type: String,
+      enum: ["MAIN", "SECONDARY", "BROTHERHOOD", "GUILD", "DOMAIN"],
+      required: true,
+      default: "MAIN",
+    },
     description: { type: String, trim: true },
     imageUrl: { type: String, trim: true },
     difficulty: { type: Number, required: true, default: 1, min: 1, max: 5 },

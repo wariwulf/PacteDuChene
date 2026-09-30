@@ -5,6 +5,22 @@ import { LevelsService } from "../levels/levels.service";
 import {
   GameEvent,
 } from "../events/events.types";
+import type { QuestCategory } from "./quests.types";
+
+const QUEST_CATEGORIES: readonly QuestCategory[] = [
+  "MAIN",
+  "SECONDARY",
+  "BROTHERHOOD",
+  "GUILD",
+  "DOMAIN",
+];
+
+function isQuestCategory(value: unknown): value is QuestCategory {
+  return (
+    typeof value === "string" &&
+    QUEST_CATEGORIES.includes(value as QuestCategory)
+  );
+}
 
 export class QuestsService {
   constructor(
@@ -162,6 +178,7 @@ export class QuestsService {
   async createQuest(data: {
     questId: string;
     name: string;
+    category?: QuestCategory;
     description?: string;
     imageUrl?: string;
     difficulty?: number;
@@ -204,6 +221,12 @@ export class QuestsService {
 
     enabled?: boolean;
   }) {
+    const category = data.category ?? "MAIN";
+
+    if (!isQuestCategory(category)) {
+      throw new Error("La catégorie de la quête est invalide.");
+    }
+
     const existing =
       await this.questsRepository.findByQuestId(
         data.questId
@@ -402,6 +425,7 @@ export class QuestsService {
 
     return this.questsRepository.create({
       ...data,
+      category,
       prerequisites,
     });
   }
@@ -473,6 +497,7 @@ export class QuestsService {
     questId: string,
     data: {
       name?: string;
+      category?: QuestCategory;
       description?: string;
       imageUrl?: string;
       difficulty?: number;
@@ -524,6 +549,13 @@ export class QuestsService {
       throw new Error(
         "Quête introuvable."
       );
+    }
+
+    if (
+      data.category !== undefined &&
+      !isQuestCategory(data.category)
+    ) {
+      throw new Error("La catégorie de la quête est invalide.");
     }
 
     if (

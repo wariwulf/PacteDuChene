@@ -230,6 +230,7 @@ export async function createQuest(
     const {
       questId,
       name,
+      category,
       description,
       imageUrl,
       difficulty,
@@ -266,6 +267,7 @@ export async function createQuest(
       await questsService.createQuest({
         questId,
         name,
+        category,
         description,
         imageUrl,
         difficulty,
@@ -465,6 +467,7 @@ export async function updateQuest(
 
     const {
       name,
+      category,
       description,
       imageUrl,
       difficulty,
@@ -483,6 +486,7 @@ export async function updateQuest(
         questId,
         {
           name,
+          category,
           description,
           imageUrl,
           difficulty,

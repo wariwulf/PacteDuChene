@@ -3,6 +3,7 @@ import {
   UserQuest,
 } from "./quests.model";
 import type {
+  QuestCategory,
   QuestObjective,
   QuestStep,
 } from "./quests.types";
@@ -11,6 +12,7 @@ import { User } from "../users/user.model";
 type QuestWriteData = {
   questId: string;
   name: string;
+  category: QuestCategory;
   description?: string;
   imageUrl?: string;
   difficulty?: number;

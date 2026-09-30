@@ -5,6 +5,13 @@ export type QuestObjectiveValidationStatus =
   | "approved"
   | "rejected";
 
+export type QuestCategory =
+  | "MAIN"
+  | "SECONDARY"
+  | "BROTHERHOOD"
+  | "GUILD"
+  | "DOMAIN";
+
 export interface QuestObjective {
   objectiveId: string;
   name: string;
@@ -29,6 +36,7 @@ export interface QuestStep {
 export interface QuestDefinition {
   questId: string;
   name: string;
+  category: QuestCategory;
   description?: string;
   imageUrl?: string;
   difficulty: number;
@@ -78,6 +86,7 @@ export interface UserQuestDocument extends UserQuest {
 export interface CreateQuestData {
   questId: string;
   name: string;
+  category: QuestCategory;
   description?: string;
   imageUrl?: string;
   difficulty: number;
