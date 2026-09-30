@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { loreRepository } from "./lore.repository";
 import { CreateLoreData } from "./lore.types";
 
@@ -10,6 +11,28 @@ function slugify(value: string) {
     .replace(/['’]/g, "")
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
+}
+
+async function generateUniqueLoreId(title: string) {
+  const baseId = slugify(title) || "lore";
+
+  // On conserve un identifiant lisible basé sur le titre.
+  // Si cet identifiant existe déjà, on lui ajoute un suffixe aléatoire.
+  if (!(await loreRepository.findByLoreId(baseId))) {
+    return baseId;
+  }
+
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    const candidate = `${baseId}-${randomBytes(3).toString("hex")}`;
+
+    if (!(await loreRepository.findByLoreId(candidate))) {
+      return candidate;
+    }
+  }
+
+  throw new Error(
+    "Impossible de générer un identifiant unique pour cette entrée de lore."
+  );
 }
 
 export class LoreService {
@@ -28,17 +51,7 @@ export class LoreService {
       throw new Error("Le titre, la catégorie et le contenu sont obligatoires.");
     }
 
-    const generatedId = slugify(data.title);
-
-    if (!generatedId) {
-      throw new Error("Impossible de générer un identifiant à partir du titre.");
-    }
-
-    if (await loreRepository.findByLoreId(generatedId)) {
-      throw new Error(
-        `Une entrée utilise déjà l'identifiant « ${generatedId} ». Modifiez légèrement le titre.`
-      );
-    }
+    const generatedId = await generateUniqueLoreId(data.title);
 
     return loreRepository.create({
       ...data,
